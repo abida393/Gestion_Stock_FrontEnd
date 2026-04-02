@@ -1,16 +1,34 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { useState } from "react";
+import { Toaster } from "react-hot-toast";
 import reactLogo from "./assets/react.svg";
 import viteLogo from "./assets/vite.svg";
 import heroImg from "./assets/hero.png";
 import Connexion from "./Connexion/Connexion";
 import "./App.css";
+import StockMovements from './StockMovements/StockMovements';
+import StockAlerts from './StockAlerts/StockAlerts';
+import Reports from "./StockReports/Reports";
+import AIInsights from "./AI_Insights/AIInsights";
+import StockDetailReport from "./StockReports/StockDetailReport";
+import MovementHistory from "./StockMovements/MovementHistory";
+import AnomalyDetection from "./AI_Insights/AnomalyDetection";
+import ThresholdConfig from "./StockAlerts/ThresholdConfig";
 
 function App() {
   return (
     <Router>
+      <Toaster position="top-right" />
       <Routes>
         <Route path="/" element={<Connexion />} />
+        <Route path="/movements" element={<StockMovements />} />
+        <Route path="/alerts" element={<StockAlerts />} />
+        <Route path="/reports" element={<Reports />} />
+        <Route path="/ai-insights" element={<AIInsights />} />
+        <Route path="/stock-detail" element={<StockDetailReport />} />
+        <Route path="/movement-history" element={<MovementHistory />} />
+        <Route path="/ai-anomalies" element={<AnomalyDetection />} />
+        <Route path="/threshold-config" element={<ThresholdConfig />} />
         {/* Add more routes here */}
       </Routes>
     </Router>

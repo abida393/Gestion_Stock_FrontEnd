@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "react-hot-toast";
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -82,6 +83,23 @@ export default function Connexion() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [focused, setFocused] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleLogin = (e) => {
+    if (e) e.preventDefault();
+    if (!email || !password) {
+      toast.error("Veuillez entrer vos identifiants.");
+      return;
+    }
+
+    setIsLoading(true);
+    // Simulation d'un appel API (Backend Integration Stub)
+    setTimeout(() => {
+      setIsLoading(false);
+      toast.success(`Connexion réussie en tant que ${role} !`);
+      // Ici tu ferais window.location.href = "/dashboard" ou similar
+    }, 2000);
+  };
 
   const isAdmin = role === "admin";
 
@@ -441,7 +459,9 @@ export default function Connexion() {
             <motion.button
               whileHover={{ scale: 1.015, y: -1 }}
               whileTap={{ scale: 0.98 }}
-              className="w-full py-3.5 rounded-xl text-sm font-bold tracking-wide shadow-lg transition-all duration-200"
+              onClick={handleLogin}
+              disabled={isLoading}
+              className={`w-full py-3.5 rounded-xl text-sm font-bold tracking-wide shadow-lg transition-all duration-200 flex items-center justify-center gap-3 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
               style={{
                 background: isAdmin
                   ? "linear-gradient(135deg, #1A2E8A, #0F1F6B)"
@@ -452,7 +472,14 @@ export default function Connexion() {
                   : "0 6px 24px rgba(29,78,216,0.35)",
               }}
             >
-              Se Connecter
+              {isLoading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  Connexion...
+                </>
+              ) : (
+                "Se Connecter"
+              )}
             </motion.button>
           </motion.div>
 
