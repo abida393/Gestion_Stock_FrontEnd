@@ -1,104 +1,112 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  ChevronDown, 
-  MoreHorizontal, 
-  Eye, 
-  Edit2, 
-  Trash2, 
+import {
+  Plus,
+  Search,
+  Filter,
+  ChevronDown,
+  MoreHorizontal,
+  Eye,
+  Edit2,
+  Trash2,
   AlertCircle,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Loader2
 } from 'lucide-react';
+import productService from '../services/productService';
+import categoryService from '../services/categoryService';
 
-// Product images
-import shoesImg from '../assets/products/shoes.png';
-import watchImg from '../assets/products/watch.png';
-import headphonesImg from '../assets/products/headphones.png';
-import chairImg from '../assets/products/chair.png';
-import micImg from '../assets/products/mic.png';
-
-const products = [
-  {
-    id: 1,
-    name: 'Chaussures AeroVance Running',
-    sku: 'AV-992-RD',
-    category: 'Vêtements',
-    categoryColor: 'bg-teal-50 text-teal-700',
-    price: '$124.00',
-    stock: 128,
-    threshold: 25,
-    image: shoesImg,
-    status: 'In Stock'
-  },
-  {
-    id: 2,
-    name: 'Titan Chrono XL',
-    sku: 'TT-W22-BK',
-    category: 'Électronique',
-    categoryColor: 'bg-blue-50 text-blue-700',
-    price: '$499.00',
-    stock: 8,
-    threshold: 15,
-    image: watchImg,
-    status: 'Low Stock'
-  },
-  {
-    id: 3,
-    name: 'Studio-X Wireless',
-    sku: 'SX-88-BT',
-    category: 'Électronique',
-    categoryColor: 'bg-blue-50 text-blue-700',
-    price: '$215.50',
-    stock: 42,
-    threshold: 30,
-    image: headphonesImg,
-    status: 'In Stock'
-  },
-  {
-    id: 4,
-    name: 'Chaise de bureau Mesh Executive',
-    sku: 'OF-441-GR',
-    category: 'Mobilier',
-    categoryColor: 'bg-slate-100 text-slate-700',
-    price: '$389.00',
-    stock: 15,
-    threshold: 10,
-    image: chairImg,
-    status: 'In Stock'
-  },
-  {
-    id: 5,
-    name: 'Micro Pro-Cast 500',
-    sku: 'PC-500-BK',
-    category: 'Électronique',
-    categoryColor: 'bg-blue-50 text-blue-700',
-    price: '$159.99',
-    stock: 2,
-    threshold: 5,
-    image: micImg,
-    status: 'Critical'
-  },
+const CATEGORY_COLORS = [
+  'bg-teal-50 text-teal-700',
+  'bg-blue-50 text-blue-700',
+  'bg-slate-100 text-slate-700',
+  'bg-orange-50 text-orange-700',
+  'bg-purple-50 text-purple-700',
 ];
+
+const normalise = (p, idx) => ({
+  id: p.id,
+  name: p.nom ?? p.name ?? '—',
+  sku: p.sku ?? '—',
+  category: p.categorie?.nom ?? p.categorie?.name ?? p.category ?? '—',
+  categoryColor: CATEGORY_COLORS[idx % CATEGORY_COLORS.length],
+  price: p.prix != null ? `${Number(p.prix).toFixed(2)} €` : (p.price ?? '—'),
+  stock: p.stock_actuel ?? p.stock ?? 0,
+  threshold: p.seuil_minimum ?? p.threshold ?? 0,
+  image: p.image_url ?? p.image ?? null,
+  status: (p.stock_actuel ?? p.stock ?? 0) === 0 ? 'Out of Stock'
+        : (p.stock_actuel ?? p.stock ?? 0) < (p.seuil_minimum ?? p.threshold ?? 0) ? 'Low Stock'
+        : 'In Stock',
+});
 
 export default function Produits() {
   const navigate = useNavigate();
   const [showAlert, setShowAlert] = useState(true);
+  const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [search, setSearch] = useState('');
+  const [selectedCat, setSelectedCat] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [meta, setMeta] = useState({ total: 0, last_page: 1 });
+  const [lowStockCount, setLowStockCount] = useState(0);
+
+  const fetchProducts = async (page = 1, s = '', cat = '') => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = { page };
+      if (s) params.search = s;
+      if (cat) params.cat = cat;
+      const [data, lowStock, cats] = await Promise.all([
+        productService.getAll(params),
+        productService.getLowStock().catch(() => []),
+        categoryService.getAll().catch(() => []),
+      ]);
+      const list = Array.isArray(data) ? data : (data.data ?? []);
+      setProducts(list.map(normalise));
+      setMeta(Array.isArray(data) ? { total: data.length, last_page: 1 } : (data.meta ?? { total: 0, last_page: 1 }));
+      const lowList = Array.isArray(lowStock) ? lowStock : (lowStock.data ?? []);
+      setLowStockCount(lowList.length);
+      const catList = Array.isArray(cats) ? cats : (cats.data ?? []);
+      setCategories(catList);
+    } catch {
+      setError("Impossible de charger les produits.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts(currentPage, search, selectedCat);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage]);
+
+  const handleSearch = (e) => {
+    setSearch(e.target.value);
+    setCurrentPage(1);
+    fetchProducts(1, e.target.value, selectedCat);
+  };
+
+  const handleCategoryFilter = (e) => {
+    setSelectedCat(e.target.value);
+    setCurrentPage(1);
+    fetchProducts(1, search, e.target.value);
+  };
 
   return (
     <div className="space-y-6">
       {/* Alert Banner */}
-      {showAlert && (
+      {showAlert && lowStockCount > 0 && (
         <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 flex items-center justify-between shadow-sm mt-[-8px]">
           <div className="flex items-center gap-3">
-             <AlertCircle className="w-5 h-5 text-orange-600" />
-             <p className="text-sm font-medium text-orange-900">
-               3 produits sont en dessous du seuil minimum — <a href="#" className="underline font-bold">Voir les alertes</a>
-             </p>
+            <AlertCircle className="w-5 h-5 text-orange-600" />
+            <p className="text-sm font-medium text-orange-900">
+              {lowStockCount} produit{lowStockCount > 1 ? 's' : ''} {lowStockCount > 1 ? 'sont' : 'est'} en dessous du seuil minimum — <a href="/alerts" className="underline font-bold">Voir les alertes</a>
+            </p>
           </div>
           <button onClick={() => setShowAlert(false)} className="text-orange-400 hover:text-orange-600 transition-colors">
             <X className="w-5 h-5" />
@@ -110,111 +118,116 @@ export default function Produits() {
       <div className="flex flex-col xl:flex-row gap-4 items-center justify-between">
         <div className="flex flex-1 items-center gap-3 w-full xl:max-w-3xl">
           <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-            <input 
-              type="text" 
-              placeholder="Rechercher un produit par nom ou SKU..." 
-              className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              value={search}
+              onChange={handleSearch}
+              placeholder="Rechercher un produit..."
+              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-[13px] focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm"
             />
           </div>
-          <div className="relative min-w-[200px] hidden sm:block">
-            <select className="appearance-none w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm pr-10">
-              <option>Toutes les catégories</option>
-              <option>Électronique</option>
-              <option>Vêtements</option>
-              <option>Mobilier</option>
+          <div className="relative min-w-[180px] hidden sm:block">
+            <select
+              value={selectedCat}
+              onChange={handleCategoryFilter}
+              className="appearance-none w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-[13px] font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm pr-10">
+              <option value="">Toutes les catégories</option>
+              {categories.map(c => (
+                <option key={c.id} value={c.id}>{c.nom ?? c.name}</option>
+              ))}
             </select>
-            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
           </div>
         </div>
 
         <div className="flex items-center gap-3 w-full xl:w-auto">
-          <button className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-700 hover:bg-slate-50 transition-all shadow-sm">
-            <Filter className="w-4 h-4" />
-            Filtres avancés
+          <button className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-[13px] font-bold text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
+            <Filter size={16} />
+            Filtres
           </button>
-          <button className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-blue-900 text-white rounded-xl text-sm font-bold hover:bg-blue-950 transition-all shadow-md">
-            <Plus className="w-4 h-4" />
-            Ajouter un produit
+          <button className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-5 py-2 bg-blue-900 text-white rounded-lg text-[13px] font-bold hover:bg-blue-950 transition-all shadow-md">
+            <Plus size={16} />
+            Ajouter
           </button>
         </div>
       </div>
 
       {/* Products Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+      <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-slate-50/50 border-b border-slate-100 uppercase text-[10px] font-bold tracking-widest text-slate-500">
-                <th className="px-6 py-4 w-10">
-                   <div className="w-4 h-4 rounded border-2 border-slate-300"></div>
-                </th>
-                <th className="px-6 py-4">Image</th>
-                <th className="px-6 py-4">Nom du produit</th>
-                <th className="px-6 py-4">Catégorie</th>
-                <th className="px-6 py-4 text-center">Prix Unitaire</th>
-                <th className="px-6 py-4 text-center">Quantité en stock</th>
-                <th className="px-6 py-4 text-center">Seuil Min</th>
-                <th className="px-6 py-4 text-right">Actions</th>
+              <tr className="bg-slate-50/50 border-b border-slate-100 uppercase text-[9px] font-extrabold tracking-widest text-slate-400">
+                <th className="px-5 py-3 w-10"></th>
+                <th className="px-5 py-3">Image</th>
+                <th className="px-5 py-3">Produit</th>
+                <th className="px-5 py-3">Catégorie</th>
+                <th className="px-5 py-3 text-center">Prix</th>
+                <th className="px-5 py-3 text-center">Stock</th>
+                <th className="px-5 py-3 text-center">Seuil</th>
+                <th className="px-5 py-3 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {products.map((product) => (
-                <tr 
-                  key={product.id} 
+              {loading && (
+                <tr><td colSpan={8} className="px-5 py-10 text-center"><Loader2 className="w-6 h-6 text-slate-400 animate-spin inline" /></td></tr>
+              )}
+              {!loading && error && (
+                <tr><td colSpan={8} className="px-5 py-6 text-center text-sm text-red-500 font-medium">{error}</td></tr>
+              )}
+              {!loading && !error && products.map((product) => (
+                <tr
+                  key={product.id}
                   className="hover:bg-slate-50 transition-colors group cursor-pointer"
                   onClick={() => navigate(`/products/${product.id}`)}
                 >
-                  <td className="px-6 py-5">
-                     <div className="w-4 h-4 rounded border-2 border-slate-300"></div>
+                  <td className="px-5 py-3">
+                    <div className="w-3.5 h-3.5 rounded border border-slate-300 group-hover:border-blue-500"></div>
                   </td>
-                  <td className="px-6 py-5">
-                    <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 overflow-hidden flex items-center justify-center">
-                      <img src={product.image} alt={product.name} className="w-10 h-10 object-contain hover:scale-110 transition-transform duration-300" />
+                  <td className="px-5 py-3">
+                    <div className="w-10 h-10 rounded-lg bg-slate-50 border border-slate-100 overflow-hidden flex items-center justify-center">
+                      {product.image
+                        ? <img src={product.image} alt={product.name} className="w-8 h-8 object-contain" />
+                        : <div className="w-8 h-8 bg-slate-200 rounded" />}
                     </div>
                   </td>
-                  <td className="px-6 py-5">
+                  <td className="px-5 py-3">
                     <div className="flex flex-col">
-                      <span className="text-sm font-bold text-slate-800">{product.name}</span>
-                      <span className="text-[10px] font-mono text-slate-400 mt-0.5">SKU: {product.sku}</span>
+                      <span className="text-[13px] font-bold text-slate-700 leading-tight">{product.name}</span>
+                      <span className="text-[9px] font-mono text-slate-400 mt-0.5">{product.sku}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-5">
-                     <span className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide ${product.categoryColor}`}>
-                       {product.category}
-                     </span>
+                  <td className="px-5 py-3">
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide ${product.categoryColor}`}>
+                      {product.category}
+                    </span>
                   </td>
-                  <td className="px-6 py-5 text-center">
-                    <span className="text-sm font-bold text-slate-700">{product.price}</span>
+                  <td className="px-5 py-3 text-center">
+                    <span className="text-[13px] font-bold text-slate-600">{product.price}</span>
                   </td>
-                  <td className="px-6 py-5 text-center">
-                    <div className="flex flex-col items-center gap-1.5">
-                       <span className={`flex items-center gap-1.5 text-sm font-bold ${
-                         product.stock < product.threshold ? 'text-red-600' : 'text-emerald-600'
-                       }`}>
-                         <span className={`w-1.5 h-1.5 rounded-full ${
-                           product.stock < product.threshold ? 'bg-red-600' : 'bg-emerald-600'
-                         }`}></span>
-                         {product.stock} Unités
-                       </span>
-                    </div>
+                  <td className="px-5 py-3 text-center">
+                    <span className={`text-[13px] font-bold ${product.stock < product.threshold ? 'text-red-500' : 'text-emerald-600'
+                      }`}>
+                      {product.stock} units
+                    </span>
                   </td>
-                  <td className="px-6 py-5 text-center">
-                    <span className="text-sm font-medium text-slate-500">{product.threshold}</span>
+                  <td className="px-5 py-3 text-center">
+                    <span className="text-[13px] font-medium text-slate-400">{product.threshold}</span>
                   </td>
-                  <td className="px-6 py-5 text-right">
-                    <div className="flex items-center justify-end gap-2 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button className="p-2 hover:bg-white hover:text-blue-600 rounded-lg hover:shadow-sm transition-all border border-transparent hover:border-slate-100">
-                        <Eye className="w-4 h-4" />
+                  <td className="px-5 py-3 text-right">
+                    <div className="flex items-center justify-end gap-1.5 text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button className="p-1.5 hover:bg-white hover:text-blue-600 rounded-md shadow-sm border border-slate-100 transition-all">
+                        <Eye size={14} />
                       </button>
-                      <button className="p-2 hover:bg-white hover:text-emerald-600 rounded-lg hover:shadow-sm transition-all border border-transparent hover:border-slate-100">
-                        <Edit2 className="w-4 h-4" />
+                      <button className="p-1.5 hover:bg-white hover:text-emerald-600 rounded-md shadow-sm border border-slate-100 transition-all">
+                        <Edit2 size={14} />
                       </button>
-                      <button className="p-2 hover:bg-white hover:text-red-500 rounded-lg hover:shadow-sm transition-all border border-transparent hover:border-slate-100">
-                        <Trash2 className="w-4 h-4" />
+                      <button className="p-1.5 hover:bg-white hover:text-red-500 rounded-md shadow-sm border border-slate-100 transition-all">
+                        <Trash2 size={14} />
                       </button>
                     </div>
-                    <MoreHorizontal className="w-5 h-5 text-slate-300 group-hover:hidden" />
+                    <MoreHorizontal className="w-4 h-4 text-slate-300 group-hover:hidden" />
                   </td>
                 </tr>
               ))}
@@ -224,42 +237,49 @@ export default function Produits() {
 
         {/* Inventory Summary */}
         <div className="px-8 py-8 bg-slate-50/50 border-t border-slate-100">
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-             <div className="flex flex-col items-center">
-               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Valeur Totale de l'Inventaire</p>
-               <p className="text-2xl font-bold text-blue-900">$142,590.00</p>
-             </div>
-             <div className="flex flex-col items-center border-l border-r border-slate-200">
-               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">SKUs Actifs</p>
-               <p className="text-2xl font-bold text-slate-800">48 <span className="text-xs font-medium text-slate-400">items</span></p>
-             </div>
-             <div className="flex flex-col items-center">
-               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Catégories</p>
-               <p className="text-2xl font-bold text-slate-800">12 <span className="text-xs font-medium text-slate-400">Global</span></p>
-             </div>
-           </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+            <div className="flex flex-col items-center">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Total Produits</p>
+              <p className="text-2xl font-bold text-blue-900">{meta.total} <span className="text-xs font-medium text-slate-400">items</span></p>
+            </div>
+            <div className="flex flex-col items-center border-l border-r border-slate-200">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Stock Faible</p>
+              <p className="text-2xl font-bold text-red-600">{lowStockCount} <span className="text-xs font-medium text-slate-400">produits</span></p>
+            </div>
+            <div className="flex flex-col items-center">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Catégories</p>
+              <p className="text-2xl font-bold text-slate-800">{categories.length} <span className="text-xs font-medium text-slate-400">Global</span></p>
+            </div>
+          </div>
         </div>
 
         {/* Pagination */}
         <div className="px-6 py-4 flex items-center justify-between border-t border-slate-100 bg-white">
           <p className="text-xs font-medium text-slate-500">
-             Affichage <span className="font-bold text-slate-800">1-10</span> sur <span className="font-bold text-slate-800">48</span> produits
+            Affichage <span className="font-bold text-slate-800">{products.length}</span> sur <span className="font-bold text-slate-800">{meta.total}</span> produits
           </p>
           <div className="flex items-center gap-2">
-            <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-lg transition-all">
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-lg transition-all disabled:opacity-30"
+            >
               <ChevronLeft className="w-4 h-4" /> Précédent
             </button>
-            {[1, 2, 3].map((num) => (
-              <button 
-                key={num} 
-                className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
-                  num === 1 ? 'bg-blue-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
-                }`}
+            {Array.from({ length: meta.last_page }, (_, i) => i + 1).map((num) => (
+              <button
+                key={num}
+                onClick={() => setCurrentPage(num)}
+                className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${num === currentPage ? 'bg-blue-900 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}
               >
                 {num}
               </button>
             ))}
-            <button className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-lg transition-all">
+            <button
+              onClick={() => setCurrentPage(p => Math.min(meta.last_page, p + 1))}
+              disabled={currentPage === meta.last_page}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-lg transition-all disabled:opacity-30"
+            >
               Suivant <ChevronRight className="w-4 h-4" />
             </button>
           </div>

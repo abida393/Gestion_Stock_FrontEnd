@@ -1,6 +1,9 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
 // eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
+import authService from "../services/authService";
 
 const WarehouseIcon = () => (
   <svg
@@ -82,6 +85,30 @@ export default function Connexion() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [focused, setFocused] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLogin = async (e) => {
+    if (e) e.preventDefault();
+    if (!email || !password) {
+      toast.error("Veuillez entrer vos identifiants.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      await authService.login(email, password);
+      toast.success("Connexion réussie !");
+      navigate("/dashboard");
+    } catch (err) {
+      const msg =
+        err.response?.data?.message ||
+        "Identifiants incorrects. Veuillez réessayer.";
+      toast.error(msg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const isAdmin = role === "admin";
 
@@ -95,7 +122,7 @@ export default function Connexion() {
     >
       {/* LEFT PANEL */}
       <motion.div
-        className="hidden lg:flex flex-col justify-between relative overflow-hidden w-[52%] p-10"
+        className="hidden lg:flex flex-col justify-between relative overflow-hidden w-[52%] p-7"
         style={{
           background:
             "linear-gradient(135deg, #0F1F6B 0%, #1A2E8A 40%, #0D1B5E 100%)",
@@ -109,67 +136,67 @@ export default function Connexion() {
         {/* Floating decorative boxes */}
         <FloatingBox
           style={{
-            width: 80,
-            height: 80,
+            width: 70,
+            height: 70,
             top: "18%",
             right: "12%",
-            borderRadius: 16,
+            borderRadius: 14,
           }}
           delay={0}
         />
         <FloatingBox
           style={{
-            width: 48,
-            height: 48,
+            width: 40,
+            height: 40,
             top: "38%",
             right: "28%",
-            borderRadius: 10,
+            borderRadius: 8,
           }}
           delay={1.5}
         />
         <FloatingBox
           style={{
-            width: 120,
-            height: 60,
+            width: 100,
+            height: 50,
             bottom: "22%",
             left: "8%",
-            borderRadius: 14,
+            borderRadius: 12,
           }}
           delay={0.8}
         />
         <FloatingBox
           style={{
-            width: 36,
-            height: 36,
+            width: 30,
+            height: 30,
             bottom: "38%",
             right: "18%",
-            borderRadius: 8,
+            borderRadius: 6,
           }}
           delay={2}
         />
 
         {/* Logo */}
-        <div className="relative z-10 flex items-center gap-3">
+        <div className="relative z-10 flex items-center gap-2.5">
           <WarehouseIcon />
-          <span className="text-white text-xl font-bold tracking-wide">
+          <span className="text-white text-lg font-bold tracking-wide">
             StockManager
           </span>
         </div>
 
         {/* Hero Text */}
-        <div className="relative z-10 space-y-6">
+        <div className="relative z-10 space-y-4">
           <motion.div
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.7 }}
           >
-            <h1 className="text-5xl font-extrabold text-white leading-tight">
+            <h1 className="text-3xl font-extrabold text-white leading-tight">
               Maîtrisez votre
               <br />
               inventaire avec{" "}
               <span style={{ color: "#F5C842" }}>précision.</span>
             </h1>
-            <p className="text-blue-200 mt-4 text-base max-w-sm leading-relaxed">
+            <p className="text-blue-200 mt-3 text-sm max-w-[320px] leading-relaxed">
               La plateforme conçue pour transformer la gestion de vos stocks en
               un véritable avantage stratégique.
             </p>
@@ -177,29 +204,29 @@ export default function Connexion() {
 
           {/* Stats Card */}
           <motion.div
-            className="border border-white/15 rounded-2xl p-5 backdrop-blur-md flex gap-8"
+            className="border border-white/15 rounded-xl p-4 backdrop-blur-md flex gap-6 w-fit"
             style={{ background: "rgba(255,255,255,0.07)" }}
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.5, duration: 0.7 }}
           >
             <div>
-              <p className="text-blue-300 text-xs font-semibold uppercase tracking-widest mb-1">
+              <p className="text-blue-300 text-[10px] font-semibold uppercase tracking-widest mb-1">
                 Valeur Totale
               </p>
-              <p className="text-white text-2xl font-bold">1.2M €</p>
+              <p className="text-white text-xl font-bold">1.2M €</p>
             </div>
             <div className="w-px bg-white/10" />
             <div>
-              <p className="text-blue-300 text-xs font-semibold uppercase tracking-widest mb-1">
+              <p className="text-blue-300 text-[10px] font-semibold uppercase tracking-widest mb-1">
                 Flux Quotidien
               </p>
               <div className="flex items-center gap-2">
-                <p className="text-white text-2xl font-bold">+12%</p>
+                <p className="text-white text-xl font-bold">+12%</p>
                 <span style={{ color: "#F5C842" }}>
                   <svg
-                    width="20"
-                    height="20"
+                    width="18"
+                    height="18"
                     viewBox="0 0 24 24"
                     fill="none"
                     stroke="currentColor"
@@ -215,7 +242,7 @@ export default function Connexion() {
         </div>
 
         {/* Footer */}
-        <div className="relative z-10 flex gap-6 text-blue-300/60 text-xs">
+        <div className="relative z-10 flex gap-5 text-blue-300/60 text-[10px] uppercase font-bold tracking-widest">
           <span>© 2024 StockManager</span>
           <a href="#" className="hover:text-white transition-colors">
             Aide
@@ -228,44 +255,44 @@ export default function Connexion() {
 
       {/* RIGHT PANEL */}
       <motion.div
-        className="flex-1 flex flex-col justify-center items-center px-8 py-12 bg-gray-50"
+        className="flex-1 flex flex-col justify-center items-center px-6 py-8 bg-gray-50"
         initial={{ opacity: 0, x: 40 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.6, delay: 0.15 }}
       >
         {/* Mobile Logo */}
-        <div className="lg:hidden flex items-center gap-3 mb-10">
+        <div className="lg:hidden flex items-center gap-3 mb-8">
           <WarehouseIcon />
-          <span className="text-gray-800 text-xl font-bold tracking-wide">
+          <span className="text-gray-800 text-lg font-bold tracking-wide">
             StockManager
           </span>
         </div>
 
-        <div className="w-full max-w-md">
+        <div className="w-full max-w-[340px]">
           {/* Header */}
           <motion.div
-            className="mb-8"
+            className="mb-6"
             initial={{ y: 16, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.25, duration: 0.5 }}
           >
-            <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">
+            <h2 className="text-2xl font-extrabold text-gray-900 tracking-tight">
               Bienvenue 👋
             </h2>
-            <p className="text-gray-400 mt-1 text-sm">
+            <p className="text-gray-400 mt-0.5 text-[13px]">
               Connectez-vous pour accéder à votre tableau de bord.
             </p>
           </motion.div>
 
           {/* Role Toggle */}
           <motion.div
-            className="relative flex bg-gray-200 rounded-xl p-1 mb-8"
+            className="relative flex bg-gray-200 rounded-lg p-1 mb-6"
             initial={{ y: 16, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.35, duration: 0.5 }}
           >
             <motion.div
-              className="absolute top-1 bottom-1 rounded-lg shadow-sm"
+              className="absolute top-1 bottom-1 rounded-md shadow-sm"
               style={{
                 background: isAdmin ? "#1A2E8A" : "#1D4ED8",
                 width: "calc(50% - 4px)",
@@ -277,11 +304,10 @@ export default function Connexion() {
               <button
                 key={r}
                 onClick={() => setRole(r)}
-                className={`relative z-10 flex-1 py-2.5 text-sm font-semibold rounded-lg transition-colors duration-200 ${
-                  role === r
+                className={`relative z-10 flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors duration-200 ${role === r
                     ? "text-white"
                     : "text-gray-500 hover:text-gray-700"
-                }`}
+                  }`}
               >
                 {r.charAt(0).toUpperCase() + r.slice(1)}
               </button>
@@ -292,18 +318,18 @@ export default function Connexion() {
           <AnimatePresence mode="wait">
             <motion.div
               key={role}
-              className="flex items-center gap-2 mb-6"
+              className="flex items-center gap-2 mb-5"
               initial={{ opacity: 0, y: -8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 8 }}
               transition={{ duration: 0.25 }}
             >
               <span
-                className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full"
+                className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full"
                 style={{ background: accentColor + "22", color: accentDark }}
               >
                 <span
-                  className="w-1.5 h-1.5 rounded-full"
+                  className="w-1 h-1 rounded-full"
                   style={{ background: accentColor }}
                 />
                 {isAdmin
@@ -315,27 +341,27 @@ export default function Connexion() {
 
           {/* Form */}
           <motion.div
-            className="space-y-5"
+            className="space-y-4"
             initial={{ y: 16, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.45, duration: 0.5 }}
           >
             {/* Email */}
             <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">
                 Identifiant ou Email
               </label>
               <div
-                className="flex items-center gap-3 rounded-xl px-4 py-3 border-2 transition-all duration-200 bg-white"
+                className="flex items-center gap-3 rounded-xl px-4 py-2.5 border-2 transition-all duration-200 bg-white"
                 style={{
                   borderColor: focused === "email" ? accentColor : "#E5E7EB",
                   boxShadow:
-                    focused === "email" ? `0 0 0 4px ${accentColor}22` : "none",
+                    focused === "email" ? `0 0 0 3px ${accentColor}11` : "none",
                 }}
               >
                 <svg
-                  width="16"
-                  height="16"
+                  width="14"
+                  height="14"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke={focused === "email" ? accentDark : "#9CA3AF"}
@@ -351,29 +377,29 @@ export default function Connexion() {
                   onChange={(e) => setEmail(e.target.value)}
                   onFocus={() => setFocused("email")}
                   onBlur={() => setFocused(null)}
-                  className="flex-1 bg-transparent text-sm text-gray-800 placeholder-gray-400 outline-none"
+                  className="flex-1 bg-transparent text-[13px] text-gray-800 placeholder-gray-400 outline-none"
                 />
               </div>
             </div>
 
             {/* Password */}
             <div>
-              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+              <label className="block text-[10px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5 ml-1">
                 Mot de passe
               </label>
               <div
-                className="flex items-center gap-3 rounded-xl px-4 py-3 border-2 transition-all duration-200 bg-white"
+                className="flex items-center gap-3 rounded-xl px-4 py-2.5 border-2 transition-all duration-200 bg-white"
                 style={{
                   borderColor: focused === "password" ? accentColor : "#E5E7EB",
                   boxShadow:
                     focused === "password"
-                      ? `0 0 0 4px ${accentColor}22`
+                      ? `0 0 0 3px ${accentColor}11`
                       : "none",
                 }}
               >
                 <svg
-                  width="16"
-                  height="16"
+                  width="14"
+                  height="14"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke={focused === "password" ? accentDark : "#9CA3AF"}
@@ -389,7 +415,7 @@ export default function Connexion() {
                   onChange={(e) => setPassword(e.target.value)}
                   onFocus={() => setFocused("password")}
                   onBlur={() => setFocused(null)}
-                  className="flex-1 bg-transparent text-sm text-gray-800 placeholder-gray-400 outline-none"
+                  className="flex-1 bg-transparent text-[13px] text-gray-800 placeholder-gray-400 outline-none"
                 />
                 <button
                   type="button"
@@ -402,76 +428,85 @@ export default function Connexion() {
             </div>
 
             {/* Remember + Forgot */}
-            <div className="flex items-center justify-between">
-              <label className="flex items-center gap-2.5 cursor-pointer group">
+            <div className="flex items-center justify-between px-1">
+              <label className="flex items-center gap-2 cursor-pointer group">
                 <div
                   onClick={() => setRemember(!remember)}
-                  className="w-4 h-4 rounded border-2 flex items-center justify-center transition-all duration-200 cursor-pointer"
+                  className="w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-all duration-200 cursor-pointer"
                   style={{
                     borderColor: remember ? accentDark : "#D1D5DB",
                     background: remember ? accentColor : "white",
                   }}
                 >
                   {remember && (
-                    <svg width="10" height="10" viewBox="0 0 12 12" fill="none">
+                    <svg width="8" height="8" viewBox="0 0 12 12" fill="none">
                       <path
                         d="M2 6L5 9L10 3"
                         stroke="#1A2E6E"
-                        strokeWidth="2"
+                        strokeWidth="2.5"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       />
                     </svg>
                   )}
                 </div>
-                <span className="text-sm text-gray-500 group-hover:text-gray-700 transition-colors select-none">
+                <span className="text-[12px] text-gray-500 group-hover:text-gray-700 transition-colors select-none">
                   Se souvenir de moi
                 </span>
               </label>
               <a
                 href="#"
-                className="text-sm font-semibold transition-colors"
+                className="text-xs font-semibold transition-colors"
                 style={{ color: accentDark }}
               >
-                Mot de passe oublié ?
+                Oublié ?
               </a>
             </div>
 
             {/* Submit */}
             <motion.button
-              whileHover={{ scale: 1.015, y: -1 }}
+              whileHover={{ scale: 1.01, y: -0.5 }}
               whileTap={{ scale: 0.98 }}
-              className="w-full py-3.5 rounded-xl text-sm font-bold tracking-wide shadow-lg transition-all duration-200"
+              onClick={handleLogin}
+              disabled={isLoading}
+              className={`w-full py-3 rounded-xl text-xs font-bold tracking-wide shadow-lg transition-all duration-200 flex items-center justify-center gap-2.5 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
               style={{
                 background: isAdmin
                   ? "linear-gradient(135deg, #1A2E8A, #0F1F6B)"
                   : "linear-gradient(135deg, #1D4ED8, #1E40AF)",
                 color: "white",
                 boxShadow: isAdmin
-                  ? "0 6px 24px rgba(26,46,138,0.35)"
-                  : "0 6px 24px rgba(29,78,216,0.35)",
+                  ? "0 4px 18px rgba(26,46,138,0.25)"
+                  : "0 4px 18px rgba(29,78,216,0.25)",
               }}
             >
-              Se Connecter
+              {isLoading ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  Connexion...
+                </>
+              ) : (
+                "Se Connecter"
+              )}
             </motion.button>
           </motion.div>
 
           {/* Divider */}
-          <div className="flex items-center gap-3 my-7">
+          <div className="flex items-center gap-3 my-6">
             <div className="flex-1 h-px bg-gray-200" />
-            <span className="text-xs text-gray-400 font-medium">ou</span>
+            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">ou</span>
             <div className="flex-1 h-px bg-gray-200" />
           </div>
 
           {/* Contact Admin */}
-          <p className="text-center text-sm text-gray-400">
+          <p className="text-center text-[12px] text-gray-400 font-medium">
             Pas encore de compte ?{" "}
             <a
               href="#"
-              className="font-semibold transition-colors"
+              className="font-bold transition-colors"
               style={{ color: accentDark }}
             >
-              Contacter l'administrateur
+              Contact Admin
             </a>
           </p>
         </div>

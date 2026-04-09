@@ -1,10 +1,10 @@
-import React from 'react';
-import { 
-  Package, 
-  AlertTriangle, 
-  ArrowLeftRight, 
-  Banknote, 
-  TrendingUp, 
+import React, { useState, useEffect } from 'react';
+import {
+  Package,
+  AlertTriangle,
+  ArrowLeftRight,
+  Banknote,
+  TrendingUp,
   TrendingDown,
   MoreVertical,
   ArrowRight
@@ -19,6 +19,8 @@ import {
   Legend
 } from 'chart.js';
 import { Bar } from 'react-chartjs-2';
+import dashboardService from '../services/dashboardService';
+import movementService from '../services/movementService';
 
 ChartJS.register(
   CategoryScale,
@@ -116,7 +118,7 @@ const topProducts = [
   { name: 'Rame de papier A4', units: 120, color: 'bg-teal-800', percentage: 25 },
 ];
 
-const recentMovements = [
+const staticRecentMovements = [
   { product: 'Logitech MX Master 3S', type: 'Entrant', qty: '+45', status: 'TERMINÉ', statusColor: 'bg-teal-100 text-teal-700' },
   { product: 'Apple MacBook Pro M3', type: 'Sortant', qty: '-12', status: 'TERMINÉ', statusColor: 'bg-teal-100 text-teal-700' },
   { product: 'SecretLab Titan EVO', type: 'Entrant', qty: '+8', status: 'EN ATTENTE', statusColor: 'bg-orange-100 text-orange-700' },
@@ -125,92 +127,117 @@ const recentMovements = [
 ];
 
 export default function Dashboard() {
+  const [kpis, setKpis] = useState({ total_products: null, active_alerts: null, movements_today: null, stock_value: null });
+  const [recentMovements, setRecentMovements] = useState(staticRecentMovements);
+
+  useEffect(() => {
+    // Load KPIs
+    dashboardService.getKPIs().then((data) => {
+      setKpis({
+        total_products: data.total_products ?? data.produits_total ?? null,
+        active_alerts: data.active_alerts ?? data.alertes_actives ?? null,
+        movements_today: data.movements_today ?? data.mouvements_aujourd_hui ?? null,
+        stock_value: data.stock_value ?? data.valeur_stock ?? null,
+      });
+    }).catch(() => {});
+
+    // Load recent movements
+    movementService.getAll({ per_page: 5 }).then((data) => {
+      const list = Array.isArray(data) ? data.slice(0, 5) : (data.data ?? []).slice(0, 5);
+      if (list.length > 0) {
+        setRecentMovements(list.map((m) => {
+          const isEntry = (m.type ?? '').toLowerCase().includes('entree') || (m.type ?? '').toLowerCase() === 'in';
+          const qty = m.quantite ?? m.quantity ?? 0;
+          return {
+            product: m.product?.nom ?? m.product?.name ?? '—',
+            type: isEntry ? 'Entrant' : 'Sortant',
+            qty: isEntry ? `+${qty}` : `-${qty}`,
+            status: 'TERMINÉ',
+            statusColor: 'bg-teal-100 text-teal-700',
+          };
+        }));
+      }
+    }).catch(() => {});
+  }, []);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Tableau de bord</h1>
-        <p className="text-sm font-medium text-slate-500 mt-1 pb-2">Lundi 22 Mai 2024</p>
+        <h1 className="text-2xl font-black tracking-tight text-slate-900">Tableau de bord</h1>
+        <p className="text-[11px] font-bold text-slate-500 mt-1">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         {/* Total Products */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition-shadow">
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition-shadow">
           <div className="flex justify-between items-start">
-            <div className="p-3 rounded-xl bg-blue-50 text-blue-700">
-              <Package className="w-6 h-6" />
+            <div className="p-2.5 rounded-xl bg-blue-50 text-blue-700">
+              <Package size={18} />
             </div>
-            <div className="flex items-center text-emerald-600 text-sm font-semibold">
-              <TrendingUp className="w-4 h-4 mr-1" />
-              12%
+            <div className="flex items-center text-emerald-600 text-[11px] font-bold">
+              <TrendingUp size={14} className="mr-1" />
             </div>
           </div>
           <div className="mt-4">
-            <p className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">Total Produits</p>
-            <p className="text-3xl font-bold text-slate-900 mt-1">12 482</p>
+            <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Total Produits</p>
+            <p className="text-2xl font-black text-slate-900 mt-0.5">{kpis.total_products ?? '—'}</p>
           </div>
         </div>
 
         {/* Active Alerts */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between border-l-[3px] border-l-red-500 relative overflow-hidden group hover:shadow-md transition-shadow">
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between border-l-[3px] border-l-red-500 relative overflow-hidden group hover:shadow-md transition-shadow">
           <div className="flex justify-between items-start z-10 relative">
-            <div className="p-3 rounded-xl bg-red-50 text-red-600">
-              <AlertTriangle className="w-6 h-6" />
-            </div>
-            <div className="flex items-center text-red-600 text-sm font-semibold">
-              <TrendingUp className="w-4 h-4 mr-1" />
-              3
+            <div className="p-2.5 rounded-xl bg-red-50 text-red-600">
+              <AlertTriangle size={18} />
             </div>
           </div>
           <div className="mt-4 z-10 relative">
-            <p className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">Alertes Actives</p>
-            <p className="text-3xl font-bold text-red-600 mt-1">5</p>
+            <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Alertes Actives</p>
+            <p className="text-2xl font-black text-red-600 mt-0.5">{kpis.active_alerts ?? '—'}</p>
           </div>
         </div>
 
         {/* Movements Today */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition-shadow">
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition-shadow">
           <div className="flex justify-between items-start z-10 relative">
-            <div className="p-3 rounded-xl bg-teal-50 text-teal-600">
-              <ArrowLeftRight className="w-6 h-6" />
+            <div className="p-2.5 rounded-xl bg-teal-50 text-teal-600">
+              <ArrowLeftRight size={18} />
             </div>
-            <div className="flex items-center text-emerald-600 text-sm font-semibold">
-              <TrendingUp className="w-4 h-4 mr-1" />
-              8%
+            <div className="flex items-center text-emerald-600 text-[11px] font-bold">
+              <TrendingUp size={14} className="mr-1" />
             </div>
           </div>
           <div className="mt-4 z-10 relative">
-            <p className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">Mouvements Aujourd'hui</p>
-            <p className="text-3xl font-bold text-slate-900 mt-1">842</p>
+            <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Flux Aujourd'hui</p>
+            <p className="text-2xl font-black text-slate-900 mt-0.5">{kpis.movements_today ?? '—'}</p>
           </div>
         </div>
 
         {/* Total Stock Value */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition-shadow">
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition-shadow">
           <div className="flex justify-between items-start z-10 relative">
-            <div className="p-3 rounded-xl bg-orange-50 text-orange-700">
-              <Banknote className="w-6 h-6" />
-            </div>
-            <div className="flex items-center text-red-500 text-sm font-semibold">
-              <TrendingDown className="w-4 h-4 mr-1" />
-              1.4%
+            <div className="p-2.5 rounded-xl bg-orange-50 text-orange-700">
+              <Banknote size={18} />
             </div>
           </div>
           <div className="mt-4 z-10 relative">
-            <p className="text-[11px] font-bold tracking-wider text-slate-500 uppercase">Valeur Totale du Stock</p>
-            <p className="text-3xl font-bold text-slate-900 mt-1">€2.4M</p>
+            <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Valeur du Stock</p>
+            <p className="text-2xl font-black text-slate-900 mt-0.5">
+              {kpis.stock_value != null ? `€${Number(kpis.stock_value).toLocaleString('fr-FR')}` : '—'}
+            </p>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Stock Evolution Chart */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 lg:col-span-2 flex flex-col">
-          <div className="flex justify-between items-center mb-6 px-1">
-            <h3 className="font-bold text-slate-900 text-lg">Évolution du Stock</h3>
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 lg:col-span-2 flex flex-col">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="font-bold text-slate-800 text-base">Évolution du Stock</h3>
           </div>
-          <div className="flex-1 w-full relative min-h-[250px]">
+          <div className="flex-1 w-full relative min-h-[220px]">
              {/* Note: In a real environment with more time we'd make a custom chart component to match the exact overlay design, but ChartJS is close */}
             <Bar options={chartOptions} data={chartData} />
             {/* Overlay line mimicking design */}
@@ -219,14 +246,14 @@ export default function Dashboard() {
         </div>
 
         {/* Top 5 moved products */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100">
-          <h3 className="font-bold text-slate-900 text-lg mb-6">Top 5 des produits mouvementés</h3>
-          <div className="space-y-6">
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+          <h3 className="font-bold text-slate-800 text-base mb-6">Top 5 Fluctuation</h3>
+          <div className="space-y-5">
             {topProducts.map((product, idx) => (
-              <div key={idx} className="flex flex-col gap-2">
-                <div className="flex justify-between items-center text-sm">
+              <div key={idx} className="flex flex-col gap-1.5">
+                <div className="flex justify-between items-center text-[11px]">
                   <span className="font-semibold text-slate-700">{product.name}</span>
-                  <span className="font-medium text-slate-500">{product.units} unités</span>
+                  <span className="font-bold text-slate-400">{product.units} units</span>
                 </div>
                 <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
                   <div className={`${product.color} h-1.5 rounded-full`} style={{ width: `${product.percentage}%` }}></div>
@@ -278,7 +305,7 @@ export default function Dashboard() {
             <h3 className="font-bold text-slate-900 text-lg">Alertes actives</h3>
             <button className="text-teal-700 text-sm font-bold hover:underline">Voir tout</button>
           </div>
-          
+
           <div className="flex flex-col gap-4">
             {/* Alert 1 */}
             <div className="w-full p-4 bg-slate-50 rounded-xl border-l-[3px] border-l-red-600 flex items-center gap-4 shadow-sm border border-slate-100">
@@ -312,8 +339,8 @@ export default function Dashboard() {
             <div className="w-full p-4 bg-slate-50 rounded-xl border-l-[3px] border-l-red-600 flex items-center gap-4 shadow-sm border border-slate-100">
               <div className="p-2 bg-black/5 rounded-lg text-red-600">
                 <div className="w-5 h-5 rounded-full bg-red-600 flex items-center justify-center flex-shrink-0">
-                    <div className="w-2.5 h-0.5 bg-white rounded-full translate-x-px rotate-45 absolute border-none"></div>
-                    <div className="w-2.5 h-0.5 bg-white rounded-full -translate-x-px -rotate-45 absolute border-none"></div>
+                  <div className="w-2.5 h-0.5 bg-white rounded-full translate-x-px rotate-45 absolute border-none"></div>
+                  <div className="w-2.5 h-0.5 bg-white rounded-full -translate-x-px -rotate-45 absolute border-none"></div>
                 </div>
               </div>
               <div className="flex-1 min-w-0">
@@ -327,19 +354,48 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Intelligence Banner */}
-        <div className="bg-gradient-to-br from-blue-50 to-indigo-50/80 rounded-2xl p-6 border border-blue-100 shadow-sm relative overflow-hidden group">
-          <div className="absolute top-0 right-0 -m-8 w-64 h-64 bg-blue-100/50 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-500"></div>
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            <div>
-              <h4 className="text-[10px] uppercase font-extrabold tracking-widest text-blue-900/60 mb-2 font-sans relative z-10">Intelligence</h4>
-              <h3 className="text-2xl font-bold text-blue-900 mb-2 relative z-10 leading-tight">Générer le rapport de performance hebdomadaire ?</h3>
-              <p className="text-sm text-blue-700/80 relative z-10 max-w-[500px] leading-relaxed font-medium">L'IA suggère que l'efficacité de votre inventaire a augmenté de 14 % ce mois-ci sur la base des derniers mouvements.</p>
+        {/* Intelligence Banner - Premium Redesign */}
+        <div className="relative overflow-hidden rounded-[24px] bg-[#0f172a] p-8 shadow-2xl shadow-blue-900/10 transition-all duration-500 border border-white/5 group">
+          {/* Animated Background Elements */}
+          <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-blue-600/20 blur-[100px] transition-transform duration-700 group-hover:scale-125"></div>
+          <div className="absolute -left-20 -bottom-20 h-64 w-64 rounded-full bg-indigo-600/10 blur-[80px] transition-transform duration-700 group-hover:scale-125"></div>
+          
+          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-8">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-blue-500/10 text-blue-400 ring-1 ring-blue-500/20">
+                  <TrendingUp size={14} className="animate-pulse" />
+                </div>
+                <span className="text-[9px] font-black uppercase tracking-[0.25em] text-blue-400/80">
+                  Système d'Intelligence
+                </span>
+              </div>
+              
+              <h3 className="text-[26px] font-black leading-tight tracking-tight text-white mb-3">
+                Générer le rapport de performance <br className="hidden md:block" /> hebdomadaire ?
+              </h3>
+              
+              <div className="flex items-center gap-4">
+                <div className="h-10 w-[2px] bg-gradient-to-b from-blue-500 to-transparent"></div>
+                <p className="max-w-[500px] text-[14px] font-medium leading-relaxed text-slate-400">
+                  L'IA suggère que l'efficacité de votre inventaire a <span className="text-emerald-400 font-bold">augmenté de 14 %</span> ce mois-ci sur la base des derniers mouvements de stock.
+                </p>
+              </div>
             </div>
-            <button className="bg-blue-950 text-white text-[13px] font-bold px-6 py-3.5 rounded-xl flex items-center gap-2 hover:bg-black transition-colors relative z-10 shadow-lg w-fit">
-              Générer le Rapport <ArrowRight className="w-4 h-4" />
-            </button>
+
+            <div className="flex flex-col items-center gap-3">
+              <button className="group/btn relative flex items-center gap-3 overflow-hidden rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-4 text-[14px] font-black text-white shadow-xl shadow-blue-500/20 transition-all hover:scale-[1.02] active:scale-95">
+                <div className="absolute inset-0 bg-white/10 group-hover/btn:opacity-0 transition-opacity"></div>
+                <span>Générer le Rapport</span>
+                <ArrowRight size={18} className="transition-transform group-hover/btn:translate-x-1" />
+              </button>
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest opacity-50">
+                Prêt en 2 secondes
+              </span>
+            </div>
           </div>
+          
+          {/* Subtle noise pattern or grid could be added here for more texture */}
         </div>
       </div>
     </div>

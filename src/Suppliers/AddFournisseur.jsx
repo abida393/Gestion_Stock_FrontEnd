@@ -15,84 +15,84 @@ export default function AddFournisseur() {
   const navigate = useNavigate();
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pb-24">
+    <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500 pb-20">
       {/* Breadcrumbs */}
-      <nav className="flex items-center gap-2 text-sm font-medium text-slate-400">
-        <Link to="/suppliers" className="hover:text-slate-600 transition-colors">Suppliers</Link>
-        <ChevronRight className="w-4 h-4" />
-        <span className="text-slate-900 font-bold">Add supplier</span>
+      <nav className="flex items-center gap-2 text-xs font-medium text-slate-400">
+        <Link to="/suppliers" className="hover:text-slate-600 transition-colors">Fournisseurs</Link>
+        <ChevronRight size={12} />
+        <span className="text-slate-900 font-bold">Ajouter un fournisseur</span>
       </nav>
 
       {/* Header */}
       <div>
-        <h1 className="text-4xl font-black text-slate-900 tracking-tight">Add new supplier</h1>
-        <p className="mt-2 text-slate-500 font-medium">Onboard a new vendor to the enterprise ecosystem.</p>
+        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Nouveau Fournisseur</h1>
+        <p className="mt-1 text-xs text-slate-500 font-medium">Enregistrez un nouveau partenaire commercial dans le système.</p>
       </div>
 
-      <div className="grid grid-cols-1 gap-8">
+      <div className="grid grid-cols-1 gap-6">
         {/* General Information Card */}
-        <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 p-10">
-          <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-8">General Information</h2>
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 md:p-8">
+          <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-6">Informations Générales</h2>
           
-          <div className="space-y-8">
+          <div className="space-y-6">
             {/* Company Name */}
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700 ml-1">Company name</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 ml-1">Nom de l'entreprise</label>
               <input 
                 type="text" 
-                placeholder="Global Logistics Inc."
-                className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-blue-500/20 focus:bg-white rounded-2xl text-slate-900 placeholder:text-slate-300 transition-all outline-none font-medium"
+                placeholder="Ex: Global Logistics Inc."
+                className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-blue-500/50 focus:bg-white rounded-lg text-slate-900 placeholder:text-slate-300 transition-all outline-none font-medium text-sm"
               />
             </div>
 
             {/* Email and Phone */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700 ml-1">Email address</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 ml-1">Adresse Email</label>
                 <div className="relative group">
-                  <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
                   <input 
                     type="email" 
-                    placeholder="contact@supplier.com"
-                    className="w-full pl-14 pr-5 py-4 bg-slate-50 border-2 border-transparent focus:border-blue-500/20 focus:bg-white rounded-2xl text-slate-900 placeholder:text-slate-300 transition-all outline-none font-medium"
+                    placeholder="contact@fournisseur.com"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-blue-500/50 focus:bg-white rounded-lg text-slate-900 placeholder:text-slate-300 transition-all outline-none font-medium text-sm"
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-slate-700 ml-1">Phone number</label>
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-slate-700 ml-1">Numéro de téléphone</label>
                 <div className="relative group">
-                  <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
+                  <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300 group-focus-within:text-blue-500 transition-colors" />
                   <input 
                     type="tel" 
-                    placeholder="+1 (555) 000-0000"
-                    className="w-full pl-14 pr-5 py-4 bg-slate-50 border-2 border-transparent focus:border-blue-500/20 focus:bg-white rounded-2xl text-slate-900 placeholder:text-slate-300 transition-all outline-none font-medium"
+                    placeholder="+33 1 23 45 67 89"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-blue-500/50 focus:bg-white rounded-lg text-slate-900 placeholder:text-slate-300 transition-all outline-none font-medium text-sm"
                   />
                 </div>
               </div>
             </div>
 
             {/* Address */}
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-slate-700 ml-1">Address</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-700 ml-1">Adresse</label>
               <textarea 
-                rows="4"
-                placeholder="Enter the full business address..."
-                className="w-full px-5 py-4 bg-slate-50 border-2 border-transparent focus:border-blue-500/20 focus:bg-white rounded-2xl text-slate-900 placeholder:text-slate-300 transition-all outline-none font-medium resize-none shadow-none"
+                rows="3"
+                placeholder="Saisissez l'adresse complète du siège..."
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-blue-500/50 focus:bg-white rounded-lg text-slate-900 placeholder:text-slate-300 transition-all outline-none font-medium text-sm resize-none"
               ></textarea>
             </div>
           </div>
         </div>
 
         {/* Linked Products Card */}
-        <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
-          <div className="p-10 flex items-center justify-between border-b border-slate-100">
+        <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
+          <div className="p-6 md:p-8 flex items-center justify-between border-b border-slate-100">
             <div>
-              <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-2">Linked Products</h2>
-              <p className="text-xs font-semibold text-slate-400">Manage the catalog associated with this supplier.</p>
+              <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-1">Produits Liés</h2>
+              <p className="text-[11px] font-semibold text-slate-400">Gérez le catalogue associé à ce fournisseur.</p>
             </div>
-            <button className="flex items-center gap-2 px-5 py-3 bg-teal-50 text-teal-700 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-teal-100 transition-all">
-              <Plus className="w-4 h-4" />
-              Link Product
+            <button className="flex items-center gap-2 px-4 py-2 bg-teal-50 text-teal-700 rounded-lg text-[10px] font-black uppercase tracking-wider hover:bg-teal-100 transition-all">
+              <Plus size={14} />
+              Lier un produit
             </button>
           </div>
 
@@ -100,32 +100,32 @@ export default function AddFournisseur() {
             <table className="w-full border-collapse">
               <thead>
                 <tr className="bg-slate-50/50">
-                  <th className="px-10 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Product</th>
-                  <th className="px-10 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Unit Price</th>
-                  <th className="px-10 py-5 text-left text-[10px] font-black text-slate-400 uppercase tracking-widest">Lead Time</th>
-                  <th className="px-10 py-5 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest">Action</th>
+                  <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Produit</th>
+                  <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Prix Unitaire</th>
+                  <th className="px-8 py-4 text-left text-[9px] font-black text-slate-400 uppercase tracking-widest">Délai</th>
+                  <th className="px-8 py-4 text-center text-[9px] font-black text-slate-400 uppercase tracking-widest">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 font-medium">
                 <tr className="group hover:bg-slate-50/50 transition-colors">
-                  <td className="px-10 py-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-400 group-hover:bg-white group-hover:text-blue-600 transition-all shadow-sm">
-                        <Package className="w-5 h-5" />
+                  <td className="px-8 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-slate-50 rounded-lg flex items-center justify-center text-slate-400 group-hover:bg-white group-hover:text-blue-600 transition-all border border-slate-100">
+                        <Package size={16} />
                       </div>
-                      <span className="text-base font-bold text-slate-900">Steel Rods 12mm</span>
+                      <span className="text-[14px] font-bold text-slate-800">Tiges d'acier 12mm</span>
                     </div>
                   </td>
-                  <td className="px-10 py-6 text-sm font-black text-slate-900">$12.40</td>
-                  <td className="px-10 py-6">
-                    <span className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black uppercase tracking-wider">
-                      14 Days
+                  <td className="px-8 py-4 text-sm font-black text-slate-700">12.40 €</td>
+                  <td className="px-8 py-4">
+                    <span className="px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-[9px] font-black uppercase tracking-widest">
+                      14 Jours
                     </span>
                   </td>
-                  <td className="px-10 py-6">
+                  <td className="px-8 py-4">
                     <div className="flex justify-center">
-                       <button className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all">
-                         <Trash2 className="w-4 h-4" />
+                       <button className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-all border border-transparent hover:border-red-100">
+                         <Trash2 size={16} />
                        </button>
                     </div>
                   </td>
@@ -137,16 +137,16 @@ export default function AddFournisseur() {
       </div>
 
       {/* Footer / Action Bar */}
-      <div className="fixed bottom-0 left-64 right-0 bg-white border-t border-slate-100 px-10 py-8 flex items-center justify-end gap-6 z-20">
+      <div className="fixed bottom-0 left-60 right-0 bg-white border-t border-slate-100 px-8 py-4 flex items-center justify-end gap-4 z-20">
          <button 
            onClick={() => navigate('/suppliers')}
-           className="px-6 py-3 text-sm font-bold text-slate-400 hover:text-slate-600 transition-all"
+           className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-slate-600 transition-all"
          >
-           Cancel
+           Annuler
          </button>
-         <button className="flex items-center gap-3 px-10 py-4 bg-[#0a1d37] text-white rounded-2xl text-sm font-bold hover:bg-black hover:shadow-2xl hover:shadow-slate-200 transition-all">
-           <Save className="w-5 h-5 text-white/70" />
-           Save supplier
+         <button className="flex items-center gap-2 px-6 py-2.5 bg-[#0a1d37] text-white rounded-lg text-xs font-bold hover:bg-black transition-all shadow-md">
+           <Save size={16} className="text-white/70" />
+           Enregistrer
          </button>
       </div>
     </div>
