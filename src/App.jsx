@@ -4,6 +4,12 @@ import reactLogo from "./assets/react.svg";
 import viteLogo from "./assets/vite.svg";
 import heroImg from "./assets/hero.png";
 import Connexion from "./Connexion/Connexion";
+import DashboardLayout from "./layout/DashboardLayout";
+import Dashboard from "./Dashboard/Dashboard";
+import Produits from "./Products/Produits";
+import ProduitDetail from "./Products/ProduitDetail";
+import Fournisseurs from "./Suppliers/Fournisseurs";
+import AddFournisseur from "./Suppliers/AddFournisseur";
 import "./App.css";
 
 function App() {
@@ -11,6 +17,18 @@ function App() {
     <Router>
       <Routes>
         <Route path="/" element={<Connexion />} />
+        <Route path="/dashboard" element={<DashboardLayout />}>
+          <Route index element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+        </Route>
+        <Route path="/products" element={<DashboardLayout />}>
+           <Route index element={<Produits />} />
+           <Route path=":id" element={<ProduitDetail />} />
+        </Route>
+        <Route path="/suppliers" element={<DashboardLayout />}>
+           <Route index element={<Fournisseurs />} />
+           <Route path="add" element={<AddFournisseur />} />
+        </Route>
         {/* Add more routes here */}
       </Routes>
     </Router>
