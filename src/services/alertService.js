@@ -1,4 +1,4 @@
-import api from '../api/axios';
+import api from './api';
 
 const alertService = {
   /** GET /alertes */
@@ -10,6 +10,12 @@ const alertService = {
   /** GET /alertes/actives */
   async getActive() {
     const response = await api.get('/alertes/actives');
+    return response.data;
+  },
+
+  /** GET /alertes/:id */
+  async getById(id) {
+    const response = await api.get(`/alertes/${id}`);
     return response.data;
   },
 

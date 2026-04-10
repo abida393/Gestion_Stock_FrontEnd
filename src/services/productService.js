@@ -1,4 +1,4 @@
-import api from '../api/axios';
+import api from './api';
 
 const productService = {
   /** GET /products  — supports ?search=&cat= */

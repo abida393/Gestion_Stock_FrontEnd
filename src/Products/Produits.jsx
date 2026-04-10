@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import productService from '../services/productService';
 import categoryService from '../services/categoryService';
+import { hasPermission } from '../services/permissionHelper';
 
 const CATEGORY_COLORS = [
   'bg-teal-50 text-teal-700',
@@ -146,10 +147,12 @@ export default function Produits() {
             <Filter size={16} />
             Filtres
           </button>
-          <button className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-5 py-2 bg-blue-900 text-white rounded-lg text-[13px] font-bold hover:bg-blue-950 transition-all shadow-md">
-            <Plus size={16} />
-            Ajouter
-          </button>
+          {hasPermission('produit.create') && (
+            <button className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-5 py-2 bg-blue-900 text-white rounded-lg text-[13px] font-bold hover:bg-blue-950 transition-all shadow-md">
+              <Plus size={16} />
+              Ajouter
+            </button>
+          )}
         </div>
       </div>
 
@@ -220,12 +223,16 @@ export default function Produits() {
                       <button className="p-1.5 hover:bg-white hover:text-blue-600 rounded-md shadow-sm border border-slate-100 transition-all">
                         <Eye size={14} />
                       </button>
-                      <button className="p-1.5 hover:bg-white hover:text-emerald-600 rounded-md shadow-sm border border-slate-100 transition-all">
-                        <Edit2 size={14} />
-                      </button>
-                      <button className="p-1.5 hover:bg-white hover:text-red-500 rounded-md shadow-sm border border-slate-100 transition-all">
-                        <Trash2 size={14} />
-                      </button>
+                      {hasPermission('produit.update') && (
+                        <button className="p-1.5 hover:bg-white hover:text-emerald-600 rounded-md shadow-sm border border-slate-100 transition-all">
+                          <Edit2 size={14} />
+                        </button>
+                      )}
+                      {hasPermission('produit.delete') && (
+                        <button className="p-1.5 hover:bg-white hover:text-red-500 rounded-md shadow-sm border border-slate-100 transition-all">
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </div>
                     <MoreHorizontal className="w-4 h-4 text-slate-300 group-hover:hidden" />
                   </td>

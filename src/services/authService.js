@@ -1,79 +1,85 @@
-import api from '../api/axios';
+import api from './api';
 
+/**
+ * Authentication Service
+ * Manages login, registration, logout, and session persistence.
+ */
 const authService = {
   /**
-   * POST /auth/login
-   * Handles multiple Sanctum response shapes:
-   *   { token, user }
-   *   { access_token, user }
-   *   { data: { token, user } }
-   *   { data: { access_token, user } }
+   * Logs in a user and stores their token and user data.
    */
   async login(email, password) {
     const response = await api.post('/auth/login', { email, password });
+    
+    // Support multiple response structures (wrapped in data or direct)
     const payload = response.data?.data ?? response.data ?? {};
+    const token = payload.token ?? payload.access_token;
+    const user = payload.user;
 
-    // Try every common token key name
-    const token =
-      payload.token ??
-      payload.access_token ??
-      payload.sanctum_token ??
-      payload.Bearer ??
-      null;
-
-    if (!token) {
-      throw new Error('Token non trouvé dans la réponse du serveur.');
+    if (token) {
+      localStorage.setItem('token', token);
+      if (user) {
+        localStorage.setItem('user', JSON.stringify(user));
+      }
     }
 
-    const user = payload.user ?? payload.utilisateur ?? null;
-
-    localStorage.setItem('sanctum_token', token);
-    if (user) localStorage.setItem('auth_user', JSON.stringify(user));
-
-    return { token, user };
+    return response.data;
   },
 
   /**
-   * POST /auth/logout
-   * Revokes the token on the server, then clears localStorage.
+   * Registers a new user.
+   */
+  async register(data) {
+    const response = await api.post('/auth/register', data);
+    return response.data;
+  },
+
+  /**
+   * Logs out the user by revoking the token and clearing storage.
    */
   async logout() {
-    await api.post('/auth/logout');
-    localStorage.removeItem('sanctum_token');
-    localStorage.removeItem('auth_user');
+    try {
+      await api.post('/auth/logout');
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      // For legacy compatibility if any other code uses old keys
+      localStorage.removeItem('sanctum_token');
+      localStorage.removeItem('auth_user');
+    }
   },
 
   /**
-   * GET /auth/me
-   * Returns the authenticated user's profile.
+   * Fetches the current authenticated user's profile.
+   * Useful for restoring session on refresh.
    */
   async me() {
     const response = await api.get('/auth/me');
-    return response.data;
+    const user = response.data?.data ?? response.data;
+    if (user) {
+      localStorage.setItem('user', JSON.stringify(user));
+    }
+    return user;
   },
 
-  /**
-   * PUT /auth/me
-   * Update own profile / password.
-   */
-  async updateProfile(data) {
-    const response = await api.put('/auth/me', data);
-    return response.data;
-  },
-
-  /** Returns the locally-stored user object (no API call). */
+  /** Helper: Get current user object */
   getUser() {
     try {
-      return JSON.parse(localStorage.getItem('auth_user'));
+      return JSON.parse(localStorage.getItem('user'));
     } catch {
       return null;
     }
   },
 
-  /** Returns true if a token exists in localStorage. */
-  isAuthenticated() {
-    return !!localStorage.getItem('sanctum_token');
+  /** Helper: Get current Bearer token */
+  getToken() {
+    return localStorage.getItem('token');
   },
+
+  /** Helper: Check if authenticated */
+  isAuthenticated() {
+    return !!this.getToken();
+  }
 };
 
 export default authService;

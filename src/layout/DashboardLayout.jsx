@@ -14,8 +14,10 @@ import {
   Bell,
   ChevronDown,
   AlertTriangle,
-  X
+  X,
+  User
 } from 'lucide-react';
+import authService from '../services/authService';
 
 export default function DashboardLayout() {
   const location = useLocation();
@@ -53,8 +55,8 @@ export default function DashboardLayout() {
       await authService.logout();
     } catch {
       // Even if the server call fails, wipe local storage
-      localStorage.removeItem('sanctum_token');
-      localStorage.removeItem('auth_user');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
     }
     navigate('/');
   };
@@ -202,7 +204,9 @@ export default function DashboardLayout() {
               <span className="absolute top-0 right-0 block h-1.5 w-1.5 rounded-full bg-red-500 ring-1 ring-white"></span>
             </button>
             <div className="flex items-center space-x-3 cursor-pointer">
-              <div className="w-7 h-7 rounded-full bg-slate-900 text-white flex items-center justify-center text-[9px] font-bold">JD</div>
+              <div className="w-7 h-7 rounded-full bg-slate-900 text-white flex items-center justify-center text-[9px] font-bold">
+                {authService.getUser()?.nom?.substring(0, 2).toUpperCase() || 'JD'}
+              </div>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
             </div>
           </div>

@@ -6,6 +6,6 @@ import { Navigate, Outlet } from 'react-router-dom';
  * If a token exists, renders the child routes via <Outlet />.
  */
 export default function PrivateRoute() {
-  const token = localStorage.getItem('sanctum_token');
+  const token = localStorage.getItem('token');
   return token ? <Outlet /> : <Navigate to="/" replace />;
 }

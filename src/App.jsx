@@ -1,5 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
+import { useState, useEffect } from "react";
 import Connexion from "./Connexion/Connexion";
 import DashboardLayout from "./layout/DashboardLayout";
 import Dashboard from "./Dashboard/Dashboard";
@@ -19,7 +20,27 @@ import ThresholdConfig from "./StockAlerts/ThresholdConfig";
 import PrivateRoute from "./components/PrivateRoute";
 
 function App() {
-  const isAuthenticated = !!localStorage.getItem('sanctum_token');
+  const [isInitializing, setIsInitializing] = useState(true);
+  const isAuthenticated = !!localStorage.getItem('token');
+
+  useEffect(() => {
+    const initAuth = async () => {
+      if (isAuthenticated) {
+        try {
+          const { default: authService } = await import('./services/authService');
+          await authService.me();
+        } catch {
+          // Token might be invalid, Axios interceptor will handle 401
+        }
+      }
+      setIsInitializing(false);
+    };
+    initAuth();
+  }, [isAuthenticated]);
+
+  if (isInitializing) {
+    return null; // Or a loading spinner
+  }
 
   return (
     <Router>
