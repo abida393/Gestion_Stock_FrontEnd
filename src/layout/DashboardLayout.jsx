@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   LayoutDashboard,
@@ -18,24 +18,38 @@ import {
   User
 } from 'lucide-react';
 import authService from '../services/authService';
+import { isAdmin } from '../services/permissionHelper';
 
 export default function DashboardLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  // Mock de notifications récentes
+  const recentNotifications = [
+    { id: 1, title: 'Stock critique', desc: 'Le produit "MacBook Pro" est presque épuisé (2 restants).', time: 'Il y a 5 min', type: 'alert' },
+    { id: 2, title: 'Mouvement suspect', desc: 'Sortie non habituelle de 50 unités de "Souris Logitech".', time: 'Il y a 1h', type: 'warning' },
+    { id: 3, title: 'Rapport généré', desc: 'Le rapport mensuel est prêt à être téléchargé.', time: 'Il y a 2h', type: 'info' },
+  ];
+
+  const admin = isAdmin();
 
   const navItems = [
     { name: 'Tableau de bord', icon: LayoutDashboard, path: '/dashboard' },
     { name: 'Produits', icon: Box, path: '/products' },
-    { name: 'Fournisseurs', icon: Users, path: '/suppliers' },
+    ...(admin ? [{ name: 'Fournisseurs', icon: Users, path: '/suppliers' }] : []),
     { name: 'Mouvements de stock', icon: ArrowLeftRight, path: '/movements' },
     { name: 'Alertes', icon: BellRing, path: '/alerts' },
-    { name: 'Rapports', icon: FileText, path: '/reports' },
-    { name: 'Analyses IA', icon: Sparkles, path: '/ai-insights' },
+    ...(admin ? [
+      { name: 'Rapports', icon: FileText, path: '/reports' },
+      { name: 'Analyses IA', icon: Sparkles, path: '/ai-insights' },
+    ] : []),
   ];
 
   const bottomItems = [
-    { name: 'Paramètres', icon: Settings, path: '/settings' },
+    { name: 'Profil', icon: User, path: '/profile' },
+    ...(admin ? [{ name: 'Paramètres', icon: Settings, path: '/settings' }] : []),
     { 
       name: 'Déconnexion', 
       icon: LogOut, 
@@ -63,6 +77,7 @@ export default function DashboardLayout() {
 
   const getPageTitle = () => {
     const path = location.pathname;
+    if (path.startsWith('/products/categories')) return 'Catégories';
     if (path.startsWith('/products')) return 'Produits';
     if (path.startsWith('/suppliers/add')) return 'Ajouter un fournisseur';
     if (path.startsWith('/suppliers')) return 'Fournisseurs';
@@ -74,6 +89,7 @@ export default function DashboardLayout() {
     if (path.startsWith('/reports')) return 'Centre de rapports';
     if (path.startsWith('/ai-insights/anomalies')) return 'Détection d\'anomalies';
     if (path.startsWith('/ai-insights')) return 'Analyses IA';
+    if (path.startsWith('/profile')) return 'Mon Profil';
     if (path.startsWith('/dashboard')) return 'Tableau de bord';
     return 'StockManager';
   };
@@ -186,26 +202,97 @@ export default function DashboardLayout() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Navbar */}
-        <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-10 flex-shrink-0">
+        <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-50 relative flex-shrink-0">
           <div className="flex items-center gap-4">
             <h2 className="text-base font-bold text-blue-900 border-r border-slate-200 pr-5 h-5 flex items-center">{getPageTitle()}</h2>
             {location.pathname.includes('/products') && (
               <div className="flex items-center gap-5">
-                <button className="text-[11px] font-bold text-blue-600 underline underline-offset-4">Inventaire</button>
-                <button className="text-[11px] font-bold text-slate-400 hover:text-slate-600">Catégories</button>
-                <button className="text-[11px] font-bold text-slate-400 hover:text-slate-600">Groupes</button>
+                <button 
+                  onClick={() => navigate('/products')} 
+                  className={`text-[11px] font-bold ${location.pathname === '/products' || location.pathname.startsWith('/products/add') || location.pathname.match(/^\/products\/\d+/) || location.pathname.startsWith('/products/edit') ? 'text-blue-600 underline underline-offset-4' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  Inventaire
+                </button>
+                <button 
+                  onClick={() => navigate('/products/categories')}
+                  className={`text-[11px] font-bold ${location.pathname === '/products/categories' ? 'text-blue-600 underline underline-offset-4' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  Catégories
+                </button>
+                <button 
+                  onClick={() => { import('react-hot-toast').then(m => m.default.success("Gestion des groupes à venir !")) }}
+                  className="text-[11px] font-bold text-slate-400 hover:text-slate-600"
+                >
+                  Groupes
+                </button>
               </div>
             )}
           </div>
 
           <div className="flex items-center space-x-6">
-            <button className="text-slate-400 hover:text-slate-600 transition-colors relative">
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-0 right-0 block h-1.5 w-1.5 rounded-full bg-red-500 ring-1 ring-white"></span>
-            </button>
-            <div className="flex items-center space-x-3 cursor-pointer">
+            <div className="relative">
+              <button 
+                onClick={() => setShowNotifications(!showNotifications)}
+                className="relative p-2 text-slate-400 hover:text-blue-600 transition-colors"
+              >
+                <Bell className="w-5 h-5" />
+                <span className="absolute top-1.5 right-2 block h-2 w-2 rounded-full bg-red-500 ring-1 ring-white"></span>
+              </button>
+
+              <AnimatePresence>
+                {showNotifications && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-40"
+                      onClick={() => setShowNotifications(false)}
+                    />
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 overflow-hidden"
+                    >
+                      <div className="p-4 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
+                        <h3 className="font-bold text-slate-800">Notifications</h3>
+                        <span className="bg-blue-100 text-blue-700 text-[10px] font-black px-2 py-0.5 rounded-full">3 NOUVELLES</span>
+                      </div>
+                      <div className="max-h-[300px] overflow-y-auto">
+                        {recentNotifications.map(notif => (
+                          <div key={notif.id} className="p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer flex gap-3">
+                            <div className={`p-2 rounded-full h-fit flex-shrink-0 ${
+                              notif.type === 'alert' ? 'bg-red-100 text-red-600' :
+                              notif.type === 'warning' ? 'bg-orange-100 text-orange-600' :
+                              'bg-blue-100 text-blue-600'
+                            }`}>
+                              {notif.type === 'alert' ? <AlertTriangle size={14}/> : 
+                               notif.type === 'warning' ? <Box size={14}/> : <FileText size={14}/>}
+                            </div>
+                            <div>
+                              <h4 className="text-sm font-bold text-slate-800">{notif.title}</h4>
+                              <p className="text-xs text-slate-500 mt-0.5 leading-snug">{notif.desc}</p>
+                              <span className="text-[10px] font-bold text-slate-400 mt-1 block">{notif.time}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <Link 
+                        to="/alerts" 
+                        onClick={() => setShowNotifications(false)}
+                        className="block w-full p-3 text-center text-xs font-bold text-blue-600 hover:bg-blue-50 transition-colors"
+                      >
+                        Voir toutes les alertes →
+                      </Link>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+            <div 
+              className="flex items-center space-x-3 cursor-pointer" 
+              onClick={() => navigate('/profile')}
+            >
               <div className="w-7 h-7 rounded-full bg-slate-900 text-white flex items-center justify-center text-[9px] font-bold">
-                {authService.getUser()?.nom?.substring(0, 2).toUpperCase() || 'JD'}
+                {(authService.getUser()?.nom || authService.getUser()?.name || 'JD').substring(0, 2).toUpperCase()}
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
             </div>

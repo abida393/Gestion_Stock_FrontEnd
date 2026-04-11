@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
   ChevronRight, 
@@ -14,26 +14,53 @@ import {
   Sparkles,
   TrendingUp,
   Info,
-  CheckCircle2
+  CheckCircle2,
+  Loader2
 } from 'lucide-react';
-import laptopImg from '../assets/products/laptop.png';
+import productService from '../services/productService';
+
+const getImageUrl = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  if (path.startsWith('/storage')) return `http://127.0.0.1:8000${path}`;
+  if (path.startsWith('/')) return `http://127.0.0.1:8000${path}`;
+  return `http://127.0.0.1:8000/storage/${path}`;
+};
 
 export default function ProduitDetail() {
   const { id } = useParams();
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  const movements = [
-    { date: '2024-05-24', type: 'ENTRANT', qty: '+24', operator: 'J. Doe', icon: ArrowUpCircle, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { date: '2024-05-22', type: 'SORTANT', qty: '-12', operator: 'S. Miller', icon: ArrowDownCircle, color: 'text-red-600', bg: 'bg-red-50' },
-    { date: '2024-05-21', type: 'SORTANT', qty: '-05', operator: 'J. Doe', icon: ArrowDownCircle, color: 'text-red-600', bg: 'bg-red-50' },
-    { date: '2024-05-18', type: 'RÉAPPRO', qty: '+50', operator: 'Admin', icon: RefreshCw, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { date: '2024-05-15', type: 'SORTANT', qty: '-08', operator: 'S. Miller', icon: ArrowDownCircle, color: 'text-red-600', bg: 'bg-red-50' },
-  ];
+  useEffect(() => {
+    const fetchParams = async () => {
+      try {
+        const data = await productService.getById(id);
+        setProduct(data.data || data); // selon la structure API Laravel
+      } catch (err) {
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchParams();
+  }, [id]);
 
-  const suppliers = [
-    'Global Tech Corp',
-    'Silicon Valley Dist.',
-    'OEM Parts Ltd'
-  ];
+  const movements = product?.mouvements || product?.movements || [];
+  const suppliers = product?.fournisseurs || product?.suppliers || [];
+
+  if (loading) return (
+    <div className="flex h-screen items-center justify-center">
+      <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+    </div>
+  );
+
+  if (error || !product) return (
+    <div className="flex h-screen items-center justify-center">
+      <p className="text-red-500 font-bold">Impossible de charger ce produit.</p>
+    </div>
+  );
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -42,29 +69,31 @@ export default function ProduitDetail() {
         <nav className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-slate-400">
           <Link to="/products" className="hover:text-blue-600 transition-colors">Produits</Link>
           <ChevronRight className="w-3 h-3" />
-          <span className="text-slate-600">Laptop Dell XPS 15</span>
+          <span className="text-slate-600">{product.nom || product.name || 'Détails du Produit'}</span>
         </nav>
         
         <div className="flex flex-wrap gap-2">
-           <span className="px-3 py-1 bg-teal-100 text-teal-700 text-[10px] font-extrabold uppercase tracking-wider rounded-lg">ÉLECTRONIQUE</span>
-           <span className="px-3 py-1 bg-orange-100 text-orange-700 text-[10px] font-extrabold uppercase tracking-wider rounded-lg">HAUTE VALEUR</span>
+           <span className="px-3 py-1 bg-teal-100 text-teal-700 text-[10px] font-extrabold uppercase tracking-wider rounded-lg">
+             {(product.categorie?.nom || product.categorie_id || 'GÉNÉRAL')}
+           </span>
+           <span className="px-3 py-1 bg-slate-100 text-slate-700 text-[10px] font-extrabold uppercase tracking-wider rounded-lg">
+             SKU : {product.sku || 'N/A'}
+           </span>
         </div>
 
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
           <div className="flex-1 max-w-2xl">
-            <h1 className="text-5xl font-black text-slate-900 tracking-tight leading-tight">Laptop Dell XPS 15</h1>
+            <h1 className="text-5xl font-black text-slate-900 tracking-tight leading-tight">{product.nom || product.name}</h1>
             <p className="mt-6 text-slate-500 leading-relaxed text-sm font-medium">
-              Le Dell XPS 15 9530 est un ordinateur portable haute performance doté d'un processeur Intel Core i9 de 13ème génération, 
-              d'une carte graphique NVIDIA GeForce RTX 4070 et d'un superbe écran tactile OLED 15,6 pouces. 
-              Conçu pour les créateurs professionnels et les utilisateurs exigeants.
+              {product.description || 'Appuyez sur modifier pour ajouter une description à ce produit. Gérez vos informations efficacement via cette interface.'}
             </p>
           </div>
           
           <div className="flex items-center gap-3">
-            <button className="flex items-center gap-2 px-6 py-3.5 bg-white border-2 border-slate-900 rounded-2xl text-sm font-bold text-slate-900 hover:bg-slate-50 transition-all">
+            <Link to={`/products/edit/${id}`} className="flex items-center gap-2 px-6 py-3.5 bg-white border-2 border-slate-900 rounded-2xl text-sm font-bold text-slate-900 hover:bg-slate-50 transition-all">
               <Edit3 className="w-4 h-4" />
               Modifier le produit
-            </button>
+            </Link>
             <button className="flex items-center gap-2 px-6 py-3.5 bg-slate-900 text-white rounded-2xl text-sm font-bold hover:bg-black transition-all shadow-lg shadow-slate-200">
               <ArrowLeftRight className="w-4 h-4" />
               Enregistrer un mouvement
@@ -78,17 +107,17 @@ export default function ProduitDetail() {
         <div className="xl:col-span-2 space-y-8">
           {/* Primary Metrics */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col justify-between h-48 border-l-[6px] border-l-teal-500">
+            <div className={`bg-white p-8 rounded-[2.5rem] shadow-sm border border-slate-100 flex flex-col justify-between h-48 border-l-[6px] ${(product.stock_actuel ?? product.stock ?? product.quantite ?? 0) <= (product.seuil_minimum ?? product.seuil_min ?? 0) ? 'border-l-orange-500' : 'border-l-emerald-500'}`}>
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Stock Actuel</p>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-black text-slate-900">142</span>
+                  <span className="text-4xl font-black text-slate-900">{product.stock_actuel ?? product.stock ?? product.quantite ?? 0}</span>
                   <span className="text-lg font-bold text-slate-400">Unités</span>
                 </div>
               </div>
-              <div className="flex items-center gap-2 text-emerald-600 text-xs font-bold">
-                <CheckCircle2 className="w-4 h-4" />
-                Niveau de stock sain
+              <div className={`flex items-center gap-2 text-xs font-bold ${(product.stock_actuel ?? product.stock ?? product.quantite ?? 0) <= (product.seuil_minimum ?? product.seuil_min ?? 0) ? 'text-orange-500' : 'text-emerald-600'}`}>
+                {(product.stock_actuel ?? product.stock ?? product.quantite ?? 0) <= (product.seuil_minimum ?? product.seuil_min ?? 0) ? <AlertTriangle className="w-4 h-4"/> : <CheckCircle2 className="w-4 h-4" />}
+                {(product.stock_actuel ?? product.stock ?? product.quantite ?? 0) <= (product.seuil_minimum ?? product.seuil_min ?? 0) ? 'Action requise : Stock faible' : 'Niveau de stock sain'}
               </div>
             </div>
 
@@ -96,13 +125,13 @@ export default function ProduitDetail() {
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Prix Unitaire</p>
                 <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-black text-slate-900">$2,499</span>
-                  <span className="text-xl font-bold text-slate-400">.00</span>
+                  <span className="text-4xl font-black text-slate-900">{Number(product.prix || 0).toFixed(2)}</span>
+                  <span className="text-xl font-bold text-slate-400">€</span>
                 </div>
               </div>
               <div className="flex items-center gap-2 text-slate-400 text-xs font-bold">
                 <Clock className="w-4 h-4" />
-                Mis à jour il y a 2 jours
+                Dernier update: {new Date(product.updated_at || product.created_at || new Date()).toLocaleDateString('fr-FR')}
               </div>
             </div>
           </div>
@@ -112,14 +141,14 @@ export default function ProduitDetail() {
             <div className="bg-slate-50/50 p-6 rounded-3xl border border-slate-100 flex items-center justify-between">
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Seuil Minimum</p>
-                <p className="text-xl font-bold text-slate-800">25 Unités</p>
+                <p className="text-xl font-bold text-slate-800">{product.seuil_minimum ?? product.seuil_min ?? 0} Unités</p>
               </div>
               <AlertTriangle className="w-6 h-6 text-orange-400" />
             </div>
             <div className="bg-slate-50/50 p-6 rounded-3xl border border-slate-100 flex items-center justify-between">
               <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Date de Création</p>
-                <p className="text-xl font-bold text-slate-800">Oct 12, 2023</p>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Date d'Ajout</p>
+                <p className="text-xl font-bold text-slate-800">{new Date(product.created_at || new Date()).toLocaleDateString('fr-FR')}</p>
               </div>
               <Calendar className="w-6 h-6 text-slate-400" />
             </div>
@@ -144,19 +173,23 @@ export default function ProduitDetail() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
-                  {movements.map((move, idx) => (
+                  {movements.length > 0 ? movements.map((move, idx) => (
                     <tr key={idx} className="group hover:bg-slate-50/50 transition-colors">
-                      <td className="py-5 text-sm font-bold text-slate-500">{move.date}</td>
+                      <td className="py-5 text-sm font-bold text-slate-500">{new Date(move.created_at || move.date).toLocaleDateString('fr-FR')}</td>
                       <td className="py-5">
                         <div className="flex items-center justify-center gap-2">
-                           <move.icon className={`w-4 h-4 ${move.color}`} />
-                           <span className={`text-[10px] font-black tracking-widest ${move.color}`}>{move.type}</span>
+                           {move.type === 'entree' || move.type === 'ENTRANT' ? <ArrowUpCircle className="w-4 h-4 text-emerald-600" /> : <ArrowDownCircle className="w-4 h-4 text-orange-600" />}
+                           <span className={`text-[10px] font-black tracking-widest ${move.type === 'entree' || move.type === 'ENTRANT' ? 'text-emerald-600' : 'text-orange-600'}`}>{move.type}</span>
                         </div>
                       </td>
-                      <td className="py-5 text-center text-sm font-black text-slate-800">{move.qty}</td>
-                      <td className="py-5 text-right text-sm font-bold text-slate-500 pr-2">{move.operator}</td>
+                      <td className="py-5 text-center text-sm font-black text-slate-800">{move.quantite || move.qty}</td>
+                      <td className="py-5 text-right text-sm font-bold text-slate-500 pr-2">{move.user?.nom || move.operator || 'Système'}</td>
                     </tr>
-                  ))}
+                  )) : (
+                    <tr>
+                      <td colSpan="4" className="py-8 text-center text-sm font-medium text-slate-400 italic">Aucun mouvement enregistré pour ce produit.</td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -168,7 +201,14 @@ export default function ProduitDetail() {
           {/* Product Image Card */}
           <div className="bg-white p-2 rounded-[2.5rem] shadow-xl shadow-slate-200 border border-slate-100 overflow-hidden group">
             <div className="aspect-square rounded-[2.2rem] bg-slate-50 flex items-center justify-center overflow-hidden relative">
-               <img src={laptopImg} alt="Dell XPS 15" className="w-4/5 object-contain group-hover:scale-110 transition-transform duration-700 ease-out" />
+               {product.image || product.image_url ? (
+                 <img src={getImageUrl(product.image || product.image_url)} alt={product.nom || product.name} className="w-4/5 object-contain group-hover:scale-110 transition-transform duration-700 ease-out" />
+               ) : (
+                 <div className="flex flex-col items-center">
+                    <Sparkles className="w-12 h-12 text-slate-300" />
+                    <span className="text-xs font-bold text-slate-400 mt-2">Aucune image</span>
+                 </div>
+               )}
                <div className="absolute top-4 right-4 p-2 bg-white/80 backdrop-blur-md rounded-full shadow-sm">
                   <Info className="w-4 h-4 text-slate-400" />
                </div>
@@ -182,12 +222,16 @@ export default function ProduitDetail() {
               <h3 className="text-xs font-black uppercase tracking-widest text-slate-900">Fournisseurs Liés</h3>
             </div>
             <ul className="space-y-4">
-              {suppliers.map((s, idx) => (
+              {suppliers.length > 0 ? suppliers.map((s, idx) => (
                 <li key={idx} className="flex items-center gap-3">
                    <div className="w-2 h-2 rounded-full bg-emerald-500 ring-4 ring-emerald-50"></div>
-                   <span className="text-sm font-bold text-slate-700 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 flex-1">{s}</span>
+                   <span className="text-sm font-bold text-slate-700 bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 flex-1">
+                     {s.nom ?? s.name ?? s}
+                   </span>
                 </li>
-              ))}
+              )) : (
+                <li className="text-sm text-slate-400 italic text-center py-4">Aucun fournisseur lié pour le moment.</li>
+              )}
             </ul>
           </div>
 

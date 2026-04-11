@@ -6,8 +6,10 @@ import DashboardLayout from "./layout/DashboardLayout";
 import Dashboard from "./Dashboard/Dashboard";
 import Produits from "./Products/Produits";
 import ProduitDetail from "./Products/ProduitDetail";
+import AddProduct from "./Products/AddProduct";
 import Fournisseurs from "./Suppliers/Fournisseurs";
 import AddFournisseur from "./Suppliers/AddFournisseur";
+import Categories from "./Products/Categories";
 import "./App.css";
 import StockMovements from './StockMovements/StockMovements';
 import StockAlerts from './StockAlerts/StockAlerts';
@@ -18,6 +20,8 @@ import MovementHistory from "./StockMovements/MovementHistory";
 import AnomalyDetection from "./AI_Insights/AnomalyDetection";
 import ThresholdConfig from "./StockAlerts/ThresholdConfig";
 import PrivateRoute from "./components/PrivateRoute";
+import AdminRoute from "./components/AdminRoute";
+import Profile from "./Profile/Profile";
 
 function App() {
   const [isInitializing, setIsInitializing] = useState(true);
@@ -60,17 +64,25 @@ function App() {
 
           <Route path="/products" element={<DashboardLayout />}>
             <Route index element={<Produits />} />
+            <Route path="add" element={<AddProduct />} />
+            <Route path="edit/:id" element={<AddProduct />} />
+            <Route path="categories" element={<Categories />} />
             <Route path=":id" element={<ProduitDetail />} />
           </Route>
 
-          <Route path="/suppliers" element={<DashboardLayout />}>
-            <Route index element={<Fournisseurs />} />
-            <Route path="add" element={<AddFournisseur />} />
+          <Route path="/suppliers" element={<AdminRoute />}>
+            <Route element={<DashboardLayout />}>
+              <Route index element={<Fournisseurs />} />
+              <Route path="add" element={<AddFournisseur />} />
+              <Route path="edit/:id" element={<AddFournisseur />} />
+            </Route>
           </Route>
 
           <Route path="/movements" element={<DashboardLayout />}>
             <Route index element={<StockMovements />} />
-            <Route path="history" element={<MovementHistory />} />
+            <Route path="history" element={<AdminRoute />}>
+              <Route element={<MovementHistory />} index />
+            </Route>
           </Route>
 
           <Route path="/alerts" element={<DashboardLayout />}>
@@ -78,14 +90,22 @@ function App() {
             <Route path="thresholds" element={<ThresholdConfig />} />
           </Route>
 
-          <Route path="/reports" element={<DashboardLayout />}>
-            <Route index element={<Reports />} />
-            <Route path="detail" element={<StockDetailReport />} />
+          <Route path="/reports" element={<AdminRoute />}>
+            <Route element={<DashboardLayout />}>
+              <Route index element={<Reports />} />
+              <Route path="detail" element={<StockDetailReport />} />
+            </Route>
           </Route>
 
-          <Route path="/ai-insights" element={<DashboardLayout />}>
-            <Route index element={<AIInsights />} />
-            <Route path="anomalies" element={<AnomalyDetection />} />
+          <Route path="/ai-insights" element={<AdminRoute />}>
+            <Route element={<DashboardLayout />}>
+              <Route index element={<AIInsights />} />
+              <Route path="anomalies" element={<AnomalyDetection />} />
+            </Route>
+          </Route>
+
+          <Route path="/profile" element={<DashboardLayout />}>
+            <Route index element={<Profile />} />
           </Route>
         </Route>
 

@@ -21,6 +21,8 @@ import {
 import { Bar } from 'react-chartjs-2';
 import dashboardService from '../services/dashboardService';
 import movementService from '../services/movementService';
+import productService from '../services/productService';
+import { isAdmin } from '../services/permissionHelper';
 
 ChartJS.register(
   CategoryScale,
@@ -86,77 +88,113 @@ const chartOptions = {
   }
 };
 
-const chartData = {
-  labels: ['LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM', 'DIM'],
-  datasets: [
-    {
-      label: 'Électronique',
-      data: [65, 45, 60, 80, 55, 40, 50],
-      backgroundColor: '#1e3a8a', // blue-900
-      barThickness: 32,
-    },
-    {
-      label: 'Mobilier',
-      data: [45, 30, 45, 50, 40, 25, 30],
-      backgroundColor: '#0f766e', // teal-700
-      barThickness: 32,
-    },
-    {
-      label: 'Fournitures',
-      data: [35, 25, 30, 40, 35, 20, 25],
-      backgroundColor: '#fcd34d', // amber-300
-      barThickness: 32,
-    },
-  ],
-};
+const WEEK_LABELS = ['LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM', 'DIM'];
+const TOP5_COLORS = ['bg-teal-700', 'bg-emerald-600', 'bg-blue-600', 'bg-indigo-500', 'bg-teal-800'];
 
-const topProducts = [
-  { name: 'Power Pro Battery', units: 420, color: 'bg-teal-700', percentage: 85 },
-  { name: 'Chaise de bureau Ergo', units: 315, color: 'bg-emerald-600', percentage: 65 },
-  { name: 'Hub USB-C v2', units: 290, color: 'bg-slate-300', percentage: 55 },
-  { name: 'Écran LED 27"', units: 150, color: 'bg-blue-600', percentage: 35 },
-  { name: 'Rame de papier A4', units: 120, color: 'bg-teal-800', percentage: 25 },
-];
-
-const staticRecentMovements = [
-  { product: 'Logitech MX Master 3S', type: 'Entrant', qty: '+45', status: 'TERMINÉ', statusColor: 'bg-teal-100 text-teal-700' },
-  { product: 'Apple MacBook Pro M3', type: 'Sortant', qty: '-12', status: 'TERMINÉ', statusColor: 'bg-teal-100 text-teal-700' },
-  { product: 'SecretLab Titan EVO', type: 'Entrant', qty: '+8', status: 'EN ATTENTE', statusColor: 'bg-orange-100 text-orange-700' },
-  { product: 'Dell UltraSharp 32', type: 'Sortant', qty: '-4', status: 'TERMINÉ', statusColor: 'bg-teal-100 text-teal-700' },
-  { product: 'Câble Ethernet Générique', type: 'Ajustement', qty: '-150', status: 'SIGNALÉ', statusColor: 'bg-red-100 text-red-700' },
-];
+const staticRecentMovements = [];
 
 export default function Dashboard() {
-  const [kpis, setKpis] = useState({ total_products: null, active_alerts: null, movements_today: null, stock_value: null });
-  const [recentMovements, setRecentMovements] = useState(staticRecentMovements);
+  const [kpis, setKpis] = useState({
+    total_products: null,
+    active_alerts: null,
+    movements_this_month: null,
+    total_stock_value: null,
+    low_stock_count: null,
+    pending_orders: null,
+  });
+  const [recentMovements, setRecentMovements] = useState([]);
+  const [chartData, setChartData] = useState(null);
+  const [topProducts, setTopProducts] = useState([]);
 
   useEffect(() => {
     // Load KPIs
     dashboardService.getKPIs().then((data) => {
       setKpis({
-        total_products: data.total_products ?? data.produits_total ?? null,
-        active_alerts: data.active_alerts ?? data.alertes_actives ?? null,
-        movements_today: data.movements_today ?? data.mouvements_aujourd_hui ?? null,
-        stock_value: data.stock_value ?? data.valeur_stock ?? null,
+        total_products:       data.total_products        ?? null,
+        active_alerts:        data.active_alerts         ?? null,
+        movements_this_month: data.movements_this_month  ?? null,
+        total_stock_value:    data.total_stock_value     ?? null,
+        low_stock_count:      data.low_stock_count       ?? null,
+        pending_orders:       data.pending_orders        ?? null,
       });
     }).catch(() => {});
 
-    // Load recent movements
-    movementService.getAll({ per_page: 5 }).then((data) => {
-      const list = Array.isArray(data) ? data.slice(0, 5) : (data.data ?? []).slice(0, 5);
-      if (list.length > 0) {
-        setRecentMovements(list.map((m) => {
-          const isEntry = (m.type ?? '').toLowerCase().includes('entree') || (m.type ?? '').toLowerCase() === 'in';
+    // Load recent movements & chart — admin only (simple users don't have GET /mouvements)
+    if (isAdmin()) {
+      // Recent movements for table
+      movementService.getAll({ per_page: 5 }).then((data) => {
+        const list = Array.isArray(data) ? data.slice(0, 5) : (data.data ?? []).slice(0, 5);
+          if (list.length > 0) {
+          setRecentMovements(list.map((m) => {
+            const isEntry = (m.type ?? '').toLowerCase().includes('entree') || (m.type ?? '').toLowerCase() === 'in';
+            const qty = m.quantite ?? m.quantity ?? 0;
+            const rawDate = m.date_mouvement || m.date || m.created_at;
+            return {
+              product: m.product?.nom ?? m.product?.name ?? m.produit?.nom ?? m.produit?.name ?? '—',
+              date: rawDate ? new Date(rawDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : '—',
+              type: isEntry ? 'Entrant' : 'Sortant',
+              qty: isEntry ? `+${qty}` : `-${qty}`,
+              status: 'TERMINÉ',
+              statusColor: 'bg-teal-100 text-teal-700',
+              isEntry,
+            };
+          }));
+        }
+      }).catch(() => {});
+
+      // All movements for weekly chart
+      movementService.getAll().then((data) => {
+        const all = Array.isArray(data) ? data : (data.data ?? []);
+        const now = new Date();
+        const dayOfWeek = now.getDay() === 0 ? 6 : now.getDay() - 1;
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - dayOfWeek);
+        weekStart.setHours(0, 0, 0, 0);
+        const entrees = Array(7).fill(0);
+        const sorties = Array(7).fill(0);
+        all.forEach(m => {
+          const rawDate = m.date_mouvement || m.date || m.created_at;
+          if (!rawDate) return;
+          const d = new Date(rawDate);
+          const diff = Math.floor((d - weekStart) / (1000 * 60 * 60 * 24));
+          if (diff < 0 || diff > 6) return;
+          const isEntry = (m.type ?? '').toLowerCase().includes('entree');
           const qty = m.quantite ?? m.quantity ?? 0;
-          return {
-            product: m.product?.nom ?? m.product?.name ?? '—',
-            type: isEntry ? 'Entrant' : 'Sortant',
-            qty: isEntry ? `+${qty}` : `-${qty}`,
-            status: 'TERMINÉ',
-            statusColor: 'bg-teal-100 text-teal-700',
-          };
-        }));
-      }
+          if (isEntry) entrees[diff] += qty;
+          else sorties[diff] += qty;
+        });
+        setChartData({
+          labels: WEEK_LABELS,
+          datasets: [
+            { label: 'Entrées', data: entrees, backgroundColor: '#0f766e', barThickness: 32 },
+            { label: 'Sorties', data: sorties, backgroundColor: '#1e3a8a', barThickness: 32 },
+          ],
+        });
+      }).catch(() => {});
+    } else {
+      // Simple user: show empty chart placeholder
+      setChartData({
+        labels: WEEK_LABELS,
+        datasets: [
+          { label: 'Entrées', data: Array(7).fill(0), backgroundColor: '#0f766e', barThickness: 32 },
+          { label: 'Sorties', data: Array(7).fill(0), backgroundColor: '#1e3a8a', barThickness: 32 },
+        ],
+      });
+    }
+
+    // Load top 5 products by stock
+    productService.getAll().then((data) => {
+      const all = Array.isArray(data) ? data : (data.data ?? []);
+      const sorted = [...all]
+        .sort((a, b) => (b.quantite_stock ?? b.stock ?? 0) - (a.quantite_stock ?? a.stock ?? 0))
+        .slice(0, 5);
+      const maxQty = sorted[0] ? (sorted[0].quantite_stock ?? sorted[0].stock ?? 1) : 1;
+      setTopProducts(sorted.map((p, i) => ({
+        name: p.nom ?? p.name ?? '—',
+        units: p.quantite_stock ?? p.stock ?? 0,
+        color: TOP5_COLORS[i],
+        percentage: Math.round(((p.quantite_stock ?? p.stock ?? 0) / maxQty) * 100),
+      })));
     }).catch(() => {});
   }, []);
 
@@ -183,6 +221,9 @@ export default function Dashboard() {
           <div className="mt-4">
             <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Total Produits</p>
             <p className="text-2xl font-black text-slate-900 mt-0.5">{kpis.total_products ?? '—'}</p>
+            {kpis.low_stock_count != null && (
+              <p className="text-[10px] text-red-500 font-bold mt-1">{kpis.low_stock_count} en stock bas</p>
+            )}
           </div>
         </div>
 
@@ -196,6 +237,9 @@ export default function Dashboard() {
           <div className="mt-4 z-10 relative">
             <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Alertes Actives</p>
             <p className="text-2xl font-black text-red-600 mt-0.5">{kpis.active_alerts ?? '—'}</p>
+            {kpis.pending_orders != null && (
+              <p className="text-[10px] text-orange-500 font-bold mt-1">{kpis.pending_orders} commande(s) en attente</p>
+            )}
           </div>
         </div>
 
@@ -210,8 +254,8 @@ export default function Dashboard() {
             </div>
           </div>
           <div className="mt-4 z-10 relative">
-            <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Flux Aujourd'hui</p>
-            <p className="text-2xl font-black text-slate-900 mt-0.5">{kpis.movements_today ?? '—'}</p>
+            <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Flux ce mois</p>
+            <p className="text-2xl font-black text-slate-900 mt-0.5">{kpis.movements_this_month ?? '—'}</p>
           </div>
         </div>
 
@@ -225,7 +269,9 @@ export default function Dashboard() {
           <div className="mt-4 z-10 relative">
             <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Valeur du Stock</p>
             <p className="text-2xl font-black text-slate-900 mt-0.5">
-              {kpis.stock_value != null ? `€${Number(kpis.stock_value).toLocaleString('fr-FR')}` : '—'}
+              {kpis.total_stock_value != null
+                ? `${Number(kpis.total_stock_value).toLocaleString('fr-FR', { style: 'currency', currency: 'MAD', maximumFractionDigits: 0 })}`
+                : '—'}
             </p>
           </div>
         </div>
@@ -238,29 +284,37 @@ export default function Dashboard() {
             <h3 className="font-bold text-slate-800 text-base">Évolution du Stock</h3>
           </div>
           <div className="flex-1 w-full relative min-h-[220px]">
-             {/* Note: In a real environment with more time we'd make a custom chart component to match the exact overlay design, but ChartJS is close */}
-            <Bar options={chartOptions} data={chartData} />
-            {/* Overlay line mimicking design */}
-            <div className="absolute top-[50%] left-0 right-0 h-px bg-slate-800 opacity-60 z-10 pointer-events-none"></div>
+            {chartData ? (
+              <Bar options={chartOptions} data={chartData} />
+            ) : (
+              <div className="flex items-center justify-center h-full min-h-[180px]">
+                <div className="w-6 h-6 border-2 border-slate-200 border-t-teal-600 rounded-full animate-spin" />
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Top 5 moved products */}
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-          <h3 className="font-bold text-slate-800 text-base mb-6">Top 5 Fluctuation</h3>
-          <div className="space-y-5">
-            {topProducts.map((product, idx) => (
-              <div key={idx} className="flex flex-col gap-1.5">
-                <div className="flex justify-between items-center text-[11px]">
-                  <span className="font-semibold text-slate-700">{product.name}</span>
-                  <span className="font-bold text-slate-400">{product.units} units</span>
+          <h3 className="font-bold text-slate-800 text-base mb-6">Top 5 — Stock</h3>
+          {topProducts.length === 0 ? (
+            <div className="flex items-center justify-center py-10">
+              <div className="w-6 h-6 border-2 border-slate-200 border-t-teal-600 rounded-full animate-spin" />
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {topProducts.map((product, idx) => (
+                <div key={idx} className="flex flex-col gap-1.5">
+                  <div className="flex justify-between items-center text-[11px]">
+                    <span className="font-semibold text-slate-700 truncate max-w-[140px]">{product.name}</span>
+                    <span className="font-bold text-slate-400 ml-2 shrink-0">{product.units.toLocaleString('fr-FR')} unités</span>
+                  </div>
+                  <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                    <div className={`${product.color} h-1.5 rounded-full transition-all duration-700`} style={{ width: `${product.percentage}%` }}></div>
+                  </div>
                 </div>
-                <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                  <div className={`${product.color} h-1.5 rounded-full`} style={{ width: `${product.percentage}%` }}></div>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -269,13 +323,14 @@ export default function Dashboard() {
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 w-full">
           <div className="flex justify-between items-center mb-6">
             <h3 className="font-bold text-slate-900 text-lg">Mouvements récents</h3>
-            <button className="text-teal-700 text-sm font-bold hover:underline">Voir tout</button>
+            <a href="/movements/history" className="text-teal-700 text-sm font-bold hover:underline">Voir tout</a>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm whitespace-nowrap">
               <thead>
                 <tr className="text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100">
                   <th className="pb-4 pl-1">Produit</th>
+                  <th className="pb-4">Date</th>
                   <th className="pb-4">Type</th>
                   <th className="pb-4">Qté</th>
                   <th className="pb-4">Statut</th>
@@ -285,8 +340,16 @@ export default function Dashboard() {
                 {recentMovements.map((move, idx) => (
                   <tr key={idx} className="hover:bg-slate-50 transition-colors">
                     <td className="py-4 pl-1 font-semibold text-slate-800">{move.product}</td>
-                    <td className="py-4 text-slate-500 font-medium text-sm">{move.type}</td>
-                    <td className={`py-4 font-bold ${move.qty.startsWith('+') ? 'text-slate-800' : 'text-slate-500'}`}>{move.qty}</td>
+                    <td className="py-4 text-slate-400 font-medium text-xs">{move.date ?? '—'}</td>
+                    <td className="py-4">
+                      <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold ${
+                        move.isEntry ? 'text-emerald-600' : 'text-red-500'
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${move.isEntry ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                        {move.type}
+                      </span>
+                    </td>
+                    <td className={`py-4 font-black text-[15px] ${move.qty?.startsWith('+') ? 'text-emerald-600' : 'text-red-500'}`}>{move.qty}</td>
                     <td className="py-4">
                       <span className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded-full tracking-wide ${move.statusColor}`}>
                         {move.status}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { toast } from "react-hot-toast";
 import { ArrowUpRight, ArrowDownLeft, CheckCircle, AlertTriangle, Calendar, History } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -13,6 +13,7 @@ const StockMovements = () => {
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [products, setProducts] = useState([]);
+    const dateInputRef = useRef(null);
 
     useEffect(() => {
         productService.getAll().then((data) => {
@@ -30,11 +31,11 @@ const StockMovements = () => {
         setIsSubmitting(true);
         try {
             await movementService.record({
-                product_id: selectedProductId,
+                produit_id: selectedProductId,
                 type: movementType === 'IN' ? 'entree' : 'sortie',
                 quantite: parseInt(quantity, 10),
                 note: note || undefined,
-                date: date || undefined,
+                date_mouvement: date || undefined,
             });
             toast.success("Mouvement de stock enregistré avec succès !");
             setQuantity("");
@@ -117,10 +118,16 @@ const StockMovements = () => {
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2 ml-1">Date</label>
                 <div className="relative">
                   <input
+                    ref={dateInputRef}
                     type="date"
                     value={date}
+                    onClick={() => dateInputRef.current?.showPicker()}
                     onChange={(e) => setDate(e.target.value)}
-                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/10 transition-all text-[13px] font-medium"
+                    className="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/10 transition-all text-[13px] font-medium cursor-pointer"
+                  />
+                  <Calendar 
+                    onClick={() => dateInputRef.current?.showPicker()} 
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 cursor-pointer pointer-events-auto" 
                   />
                 </div>
               </div>

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import toast from 'react-hot-toast';
 import {
   Plus,
   Search,
@@ -17,7 +19,7 @@ import {
 } from 'lucide-react';
 import productService from '../services/productService';
 import categoryService from '../services/categoryService';
-import { hasPermission } from '../services/permissionHelper';
+import { isAdmin } from '../services/permissionHelper';
 
 const CATEGORY_COLORS = [
   'bg-teal-50 text-teal-700',
@@ -27,6 +29,13 @@ const CATEGORY_COLORS = [
   'bg-purple-50 text-purple-700',
 ];
 
+const getImageUrl = (path) => {
+  if (!path) return null;
+  if (path.startsWith('http')) return path;
+  if (path.startsWith('/storage')) return `http://127.0.0.1:8000${path}`;
+  return `http://127.0.0.1:8000/storage/${path}`;
+};
+
 const normalise = (p, idx) => ({
   id: p.id,
   name: p.nom ?? p.name ?? '—',
@@ -34,12 +43,12 @@ const normalise = (p, idx) => ({
   category: p.categorie?.nom ?? p.categorie?.name ?? p.category ?? '—',
   categoryColor: CATEGORY_COLORS[idx % CATEGORY_COLORS.length],
   price: p.prix != null ? `${Number(p.prix).toFixed(2)} €` : (p.price ?? '—'),
-  stock: p.stock_actuel ?? p.stock ?? 0,
-  threshold: p.seuil_minimum ?? p.threshold ?? 0,
-  image: p.image_url ?? p.image ?? null,
-  status: (p.stock_actuel ?? p.stock ?? 0) === 0 ? 'Out of Stock'
-        : (p.stock_actuel ?? p.stock ?? 0) < (p.seuil_minimum ?? p.threshold ?? 0) ? 'Low Stock'
-        : 'In Stock',
+  stock: p.stock_actuel ?? p.stock ?? p.quantite ?? 0,
+  threshold: p.seuil_minimum ?? p.seuil_min ?? p.threshold ?? 0,
+  image: getImageUrl(p.image_url ?? p.image),
+  status: (p.stock_actuel ?? p.stock ?? p.quantite ?? 0) === 0 ? 'Out of Stock'
+    : (p.stock_actuel ?? p.stock ?? p.quantite ?? 0) < (p.seuil_minimum ?? p.seuil_min ?? p.threshold ?? 0) ? 'Low Stock'
+      : 'In Stock',
 });
 
 export default function Produits() {
@@ -54,6 +63,19 @@ export default function Produits() {
   const [currentPage, setCurrentPage] = useState(1);
   const [meta, setMeta] = useState({ total: 0, last_page: 1 });
   const [lowStockCount, setLowStockCount] = useState(0);
+  const [productToDelete, setProductToDelete] = useState(null);
+
+  const confirmDelete = async () => {
+    if (!productToDelete) return;
+    try {
+      await productService.remove(productToDelete);
+      toast.success("Produit supprimé avec succès.");
+      setProductToDelete(null);
+      fetchProducts(currentPage, search, selectedCat);
+    } catch {
+      toast.error("Erreur lors de la suppression du produit.");
+    }
+  };
 
   const fetchProducts = async (page = 1, s = '', cat = '') => {
     setLoading(true);
@@ -61,7 +83,7 @@ export default function Produits() {
     try {
       const params = { page };
       if (s) params.search = s;
-      if (cat) params.cat = cat;
+      if (cat) params.categorie_id = cat;
       const [data, lowStock, cats] = await Promise.all([
         productService.getAll(params),
         productService.getLowStock().catch(() => []),
@@ -99,7 +121,46 @@ export default function Produits() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Modal de confirmation de suppression */}
+      <AnimatePresence>
+        {productToDelete && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-[2px]">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setProductToDelete(null)}
+              className="absolute inset-0 bg-slate-900/30"
+            />
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 10 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              className="relative w-full max-w-[320px] bg-white rounded-3xl shadow-2xl p-6 md:p-8 border border-slate-100"
+            >
+              <div className="flex flex-col items-center text-center gap-4 mb-6">
+                <div className="p-4 bg-red-50 text-red-500 rounded-full">
+                  <AlertCircle size={32} strokeWidth={2.5} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 tracking-tight">Supprimer ce produit ?</h3>
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed mt-2">
+                    Action irréversible. Toutes les données associées disparaîtront.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col gap-3">
+                <button 
+                  onClick={confirmDelete}
+                  className="w-full py-3.5 bg-red-500 text-white rounded-xl text-[11px] font-black uppercase tracking-[0.2em] hover:bg-red-600 transition-all active:scale-95 shadow-lg shadow-red-200"
+                >Oui, supprimer</button>
+                <button 
+                  onClick={() => setProductToDelete(null)}
+                  className="w-full py-3.5 bg-slate-100 text-slate-600 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] hover:bg-slate-200 transition-all active:scale-95"
+                >Annuler</button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Alert Banner */}
       {showAlert && lowStockCount > 0 && (
         <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 flex items-center justify-between shadow-sm mt-[-8px]">
@@ -147,8 +208,11 @@ export default function Produits() {
             <Filter size={16} />
             Filtres
           </button>
-          {hasPermission('produit.create') && (
-            <button className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-5 py-2 bg-blue-900 text-white rounded-lg text-[13px] font-bold hover:bg-blue-950 transition-all shadow-md">
+          {isAdmin() && (
+            <button 
+              onClick={() => navigate('/products/add')}
+              className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-5 py-2 bg-blue-900 text-white rounded-lg text-[13px] font-bold hover:bg-blue-950 transition-all shadow-md"
+            >
               <Plus size={16} />
               Ajouter
             </button>
@@ -223,13 +287,16 @@ export default function Produits() {
                       <button className="p-1.5 hover:bg-white hover:text-blue-600 rounded-md shadow-sm border border-slate-100 transition-all">
                         <Eye size={14} />
                       </button>
-                      {hasPermission('produit.update') && (
+                      {isAdmin() && (
                         <button className="p-1.5 hover:bg-white hover:text-emerald-600 rounded-md shadow-sm border border-slate-100 transition-all">
                           <Edit2 size={14} />
                         </button>
                       )}
-                      {hasPermission('produit.delete') && (
-                        <button className="p-1.5 hover:bg-white hover:text-red-500 rounded-md shadow-sm border border-slate-100 transition-all">
+                      {isAdmin() && (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); setProductToDelete(product.id); }}
+                          className="p-1.5 hover:bg-white hover:text-red-500 rounded-md shadow-sm border border-slate-100 transition-all"
+                        >
                           <Trash2 size={14} />
                         </button>
                       )}

@@ -6,12 +6,20 @@ import {
     ArrowDownLeft, ArrowUpRight, ShieldCheck, Loader2
 } from 'lucide-react';
 import movementService from '../services/movementService';
+import productService from '../services/productService';
 
 const MovementHistory = () => {
     const [filterType, setFilterType] = useState('Tous');
     const [movements, setMovements] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+
+    const [products, setProducts] = useState([]);
+    const [selectedProduct, setSelectedProduct] = useState('Tous');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 8;
 
     const fetchMovements = async (type) => {
         setLoading(true);
@@ -25,9 +33,13 @@ const MovementHistory = () => {
             } else {
                 data = await movementService.getAll();
             }
-            const list = Array.isArray(data) ? data : (data.data ?? []);
+            let list = [];
+            if (Array.isArray(data)) list = data;
+            else if (data?.data && Array.isArray(data.data)) list = data.data;
+            else if (data?.data?.data && Array.isArray(data.data.data)) list = data.data.data;
             setMovements(list);
-        } catch {
+        } catch (error) {
+            console.error("API error or normalization error:", error);
             setError("Impossible de charger les mouvements.");
         } finally {
             setLoading(false);
@@ -39,23 +51,69 @@ const MovementHistory = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filterType]);
 
+    useEffect(() => {
+        productService.getAll().then((data) => {
+            setProducts(Array.isArray(data) ? data : (data.data ?? []));
+        }).catch(() => {});
+    }, []);
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filterType, selectedProduct, startDate, endDate]);
+
     // Normalise API movement shape
     const normalise = (m) => {
         const isEntry = (m.type ?? '').toLowerCase().includes('entree') || (m.type ?? '').toLowerCase().includes('entrée') || (m.type ?? '').toLowerCase() === 'in';
+        const rawDate = m.date || m.date_mouvement || m.created_at;
         return {
             id: m.id,
-            date: m.date ? new Date(m.date).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
-            time: m.date ? new Date(m.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '—',
-            product: m.product?.nom ?? m.product?.name ?? m.produit ?? '—',
-            sku: m.product?.sku ?? m.sku ?? '—',
+            product_id: m.produit_id ?? m.product?.id ?? m.produit?.id,
+            rawDate: rawDate,
+            date: rawDate ? new Date(rawDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—',
+            time: rawDate ? new Date(rawDate).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '—',
+            product: m.product?.nom ?? m.product?.name ?? m.produit?.nom ?? m.produit?.name ?? '—',
+            sku: m.product?.sku ?? m.produit?.sku ?? m.sku ?? '—',
             type: isEntry ? 'ENTRÉE' : 'SORTIE',
             qty: isEntry ? `+${m.quantite ?? m.quantity}` : `-${m.quantite ?? m.quantity}`,
             after: m.stock_apres ?? m.stock_after ?? '—',
-            user: m.user?.name ?? m.user?.nom ?? m.utilisateur ?? '—',
+            user: m.user?.name ?? m.user?.nom ?? m.utilisateur?.name ?? m.utilisateur?.nom ?? '—',
+            note: m.note ?? m.reference ?? '',
         };
     };
 
-    const displayedMovements = movements.map(normalise);
+    const allNormalised = movements.map(normalise);
+
+    const filteredMovements = allNormalised.filter(m => {
+        if (selectedProduct !== 'Tous' && m.product_id?.toString() !== selectedProduct.toString()) return false;
+        
+        if (startDate && m.rawDate) {
+            if (new Date(m.rawDate) < new Date(startDate)) return false;
+        }
+        if (endDate && m.rawDate) {
+            const endD = new Date(endDate);
+            endD.setHours(23, 59, 59, 999);
+            if (new Date(m.rawDate) > endD) return false;
+        }
+        return true;
+    });
+
+    const totalPages = Math.max(1, Math.ceil(filteredMovements.length / itemsPerPage));
+    const displayedMovements = filteredMovements.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+
+    const handleExport = () => {
+        const headers = ['Date', 'Heure', 'Produit', 'SKU', 'Type', 'Quantité', 'Stock Final', 'Utilisateur', 'Note'];
+        const rows = filteredMovements.map(m => [
+            m.date, m.time, m.product, m.sku, m.type, m.qty, m.after, m.user, m.note
+        ]);
+        const csvContent = [headers, ...rows].map(r => r.map(v => `"${v ?? ''}"`).join(',')).join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `mouvements_${new Date().toISOString().split('T')[0]}.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
 
 
 
@@ -75,8 +133,15 @@ const MovementHistory = () => {
             <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-100 mb-6 flex flex-wrap items-center gap-4">
                 <div className="relative flex-1 min-w-[200px]">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                    <select className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/10 appearance-none text-[13px]">
-                        <option>Tous les produits</option>
+                    <select 
+                        value={selectedProduct} 
+                        onChange={(e) => setSelectedProduct(e.target.value)}
+                        className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/10 appearance-none text-[13px]"
+                    >
+                        <option value="Tous">Tous les produits</option>
+                        {products.map(p => (
+                            <option key={p.id} value={p.id}>{p.nom ?? p.name}</option>
+                        ))}
                     </select>
                 </div>
 
@@ -92,11 +157,42 @@ const MovementHistory = () => {
                     ))}
                 </div>
 
-                <div className="flex items-center gap-2 bg-slate-50 border border-slate-100 px-4 py-2 rounded-lg text-[11px] font-bold text-slate-600">
-                    <Calendar size={14} /> 01 Oct - 31 Oct, 2023
+                <div className="flex items-center gap-2 flex-wrap">
+                    <div className="flex flex-col">
+                        <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-0.5 ml-1">De</label>
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus-within:border-blue-400 transition-all">
+                            <Calendar size={13} className="text-slate-400 shrink-0" />
+                            <input 
+                                type="date" 
+                                value={startDate} 
+                                onChange={(e) => setStartDate(e.target.value)} 
+                                className="bg-transparent outline-none text-slate-700 text-[12px] font-semibold cursor-pointer w-[120px]"
+                            />
+                        </div>
+                    </div>
+                    <div className="flex flex-col">
+                        <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-0.5 ml-1">À</label>
+                        <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus-within:border-blue-400 transition-all">
+                            <Calendar size={13} className="text-slate-400 shrink-0" />
+                            <input 
+                                type="date" 
+                                value={endDate} 
+                                onChange={(e) => setEndDate(e.target.value)} 
+                                className="bg-transparent outline-none text-slate-700 text-[12px] font-semibold cursor-pointer w-[120px]"
+                            />
+                        </div>
+                    </div>
+                    {(startDate || endDate) && (
+                        <button 
+                            onClick={() => { setStartDate(''); setEndDate(''); }}
+                            className="mt-3 text-[9px] font-black uppercase text-slate-400 hover:text-red-500 transition-colors tracking-widest"
+                        >
+                            Effacer
+                        </button>
+                    )}
                 </div>
 
-                <button className="bg-[#1e293b] text-white px-5 py-2 rounded-lg font-bold text-xs flex items-center gap-2 hover:bg-slate-800 transition-all">
+                <button onClick={handleExport} className="bg-[#1e293b] text-white px-5 py-2 rounded-lg font-bold text-xs flex items-center gap-2 hover:bg-slate-800 transition-all">
                     <Download size={16} /> Exporter
                 </button>
             </div>
@@ -122,6 +218,17 @@ const MovementHistory = () => {
                             )}
                             {!loading && error && (
                                 <tr><td colSpan={7} className="px-6 py-6 text-center text-sm text-red-500 font-medium">{error}</td></tr>
+                            )}
+                            {!loading && !error && displayedMovements.length === 0 && (
+                                <tr>
+                                    <td colSpan={7} className="px-6 py-16 text-center">
+                                        <div className="flex flex-col items-center gap-2">
+                                            <Search className="w-8 h-8 text-slate-200" />
+                                            <p className="text-sm font-bold text-slate-400">Aucun mouvement trouvé</p>
+                                            <p className="text-xs text-slate-300">Modifiez vos filtres ou ajoutez un nouveau mouvement.</p>
+                                        </div>
+                                    </td>
+                                </tr>
                             )}
                             {!loading && !error && displayedMovements.map((m) => (
                                 <tr key={m.id} className="hover:bg-slate-50/50 transition-all group">
@@ -149,9 +256,16 @@ const MovementHistory = () => {
                                         </div>
                                     </td>
                                     <td className="px-6 py-3.5 text-right">
-                                        <button className="p-1.5 text-slate-300 hover:text-slate-600 hover:bg-slate-50 rounded-md transition-all">
-                                            <FileText size={16} />
-                                        </button>
+                                        {m.note ? (
+                                            <button 
+                                                title={m.note} 
+                                                className="p-1.5 text-blue-500 hover:text-blue-700 hover:bg-blue-50 rounded-md transition-all shadow-sm border border-blue-100"
+                                            >
+                                                <FileText size={16} />
+                                            </button>
+                                        ) : (
+                                            <span className="text-[9px] font-black uppercase text-slate-300">Aucune</span>
+                                        )}
                                     </td>
                                 </tr>
                             ))}
@@ -159,18 +273,54 @@ const MovementHistory = () => {
                     </table>
                 </div>
 
-                {/* Pagination */}
+                {/* Pagination Dynamique */}
                 <div className="p-4 bg-slate-50/50 border-t border-slate-100 flex justify-between items-center text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                    <p>Page 1 sur 11</p>
-                    <div className="flex items-center gap-1.5">
-                        <button className="p-1.5 hover:bg-white rounded-md transition-colors"><ChevronLeft size={14} /></button>
-                        {[1, 2, 3].map(p => (
-                            <button key={p} className={`w-7 h-7 rounded-md text-[10px] font-black transition-all ${p === 1 ? 'bg-[#1e293b] text-white shadow-sm' : 'hover:bg-white text-slate-600'}`}>{p}</button>
-                        ))}
-                        <span className="px-1 text-slate-300">...</span>
-                        <button className="w-7 h-7 hover:bg-white rounded-md text-[10px] font-black text-slate-600">11</button>
-                        <button className="p-1.5 hover:bg-white rounded-md transition-colors"><ChevronRight size={14} /></button>
-                    </div>
+                    <p>
+                        {filteredMovements.length === 0 ? 'Aucun résultat' : 
+                         `${filteredMovements.length} mouvement${filteredMovements.length > 1 ? 's' : ''} • Page ${currentPage} sur ${totalPages}`}
+                    </p>
+                    {totalPages > 1 && (
+                        <div className="flex items-center gap-1.5">
+                            <button 
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={currentPage === 1}
+                                className="p-1.5 hover:bg-white rounded-md transition-colors disabled:opacity-50"
+                            >
+                                <ChevronLeft size={14} />
+                            </button>
+                            
+                            {Array.from({ length: Math.min(3, totalPages) }).map((_, i) => {
+                                const p = i + 1;
+                                return (
+                                    <button 
+                                        key={p} 
+                                        onClick={() => setCurrentPage(p)}
+                                        className={`w-7 h-7 rounded-md text-[10px] font-black transition-all ${currentPage === p ? 'bg-[#1e293b] text-white shadow-sm' : 'hover:bg-white text-slate-600'}`}
+                                    >
+                                        {p}
+                                    </button>
+                                );
+                            })}
+                            
+                            {totalPages > 3 && <span className="px-1 text-slate-300">...</span>}
+                            {totalPages > 3 && (
+                                <button 
+                                    onClick={() => setCurrentPage(totalPages)}
+                                    className={`w-7 h-7 rounded-md text-[10px] font-black transition-all ${currentPage === totalPages ? 'bg-[#1e293b] text-white shadow-sm' : 'hover:bg-white text-slate-600'}`}
+                                >
+                                    {totalPages}
+                                </button>
+                            )}
+                            
+                            <button 
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={currentPage === totalPages}
+                                className="p-1.5 hover:bg-white rounded-md transition-colors disabled:opacity-50"
+                            >
+                                <ChevronRight size={14} />
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 

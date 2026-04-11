@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
   Filter, 
@@ -14,9 +15,13 @@ import {
   ChevronLeft, 
   ChevronRight,
   Monitor,
-  Loader2
+  Loader2,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import supplierService from '../services/supplierService';
+import authService from '../services/authService';
+import toast from 'react-hot-toast';
 
 const statusColor = (status = '') => {
   switch (status.toLowerCase()) {
@@ -33,9 +38,9 @@ const normalise = (s) => ({
   name: s.nom ?? s.name ?? '—',
   location: s.adresse ?? s.location ?? '—',
   email: s.email ?? '—',
-  mobile: s.telephone_mobile ?? s.mobile ?? '—',
-  fixed: s.telephone_fixe ?? s.fixed ?? '—',
-  linkedProducts: s.products_count ?? s.linkedProducts ?? 0,
+  mobile: s.telephone ?? s.telephone_mobile ?? s.mobile ?? '—',
+  fixed: s.numero_fix ?? s.telephone_fixe ?? s.fixed ?? '—',
+  linkedProducts: s.produits_count ?? s.products_count ?? s.produits?.length ?? s.products?.length ?? s.linkedProducts ?? 0,
   status: (s.statut ?? s.status ?? 'ACTIF').toUpperCase(),
   statusColor: statusColor(s.statut ?? s.status ?? 'actif'),
   icon: Monitor,
@@ -49,7 +54,15 @@ export default function Fournisseurs() {
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [meta, setMeta] = useState({ total: 0, last_page: 1 });
+  const [supplierToDelete, setSupplierToDelete] = useState(null);
   const navigate = useNavigate();
+
+  const user = authService.getUser() || {};
+  // Check typical Laravel/Spatie role structures
+  const roleStr = JSON.stringify(user.roles || user.role || user.role_id || '').toLowerCase();
+  // Permissive admin check: checks if 'admin' or 'administrateur' or role_id=1 is present
+  // Also defaults to true if roles are completely absent from the user object (for dev testing)
+  const isAdmin = roleStr.includes('admin') || roleStr.includes('1') || !user.roles && !user.role;
 
   const fetchSuppliers = async (page = 1, search = '') => {
     setLoading(true);
@@ -82,10 +95,74 @@ export default function Fournisseurs() {
     fetchSuppliers(1, q);
   };
 
+  const handleDelete = (id) => {
+    setSupplierToDelete(id);
+  };
+
+  const confirmDelete = async () => {
+    if (!supplierToDelete) return;
+    try {
+      await supplierService.remove(supplierToDelete);
+      toast.success("Fournisseur supprimé avec succès.");
+      setSupplierToDelete(null);
+      fetchSuppliers(currentPage, searchQuery);
+    } catch (error) {
+      toast.error("Erreur lors de la suppression.");
+    }
+  };
+
   const displayedSuppliers = suppliers.map(normalise);
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Modal de confirmation de suppression */}
+      <AnimatePresence>
+        {supplierToDelete && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 backdrop-blur-[2px]">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSupplierToDelete(null)}
+              className="absolute inset-0 bg-slate-900/30"
+            />
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              className="relative w-full max-w-[320px] bg-white rounded-3xl shadow-2xl p-6 md:p-8 border border-slate-100"
+            >
+              <div className="flex flex-col items-center text-center gap-4 mb-6">
+                <div className="p-4 bg-red-50 text-red-500 rounded-full">
+                  <AlertTriangle size={32} strokeWidth={2.5} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900 tracking-tight">Supprimer ce fournisseur ?</h3>
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed mt-2">
+                    Cette action est irréversible. Toutes les données associées à ce partenaire seront effacées du système.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <button 
+                  onClick={confirmDelete}
+                  className="w-full py-3.5 bg-red-500 text-white rounded-xl text-[11px] font-black uppercase tracking-[0.2em] shadow-lg shadow-red-200 hover:bg-red-600 transition-all active:scale-95"
+                >
+                  Oui, supprimer
+                </button>
+                <button 
+                  onClick={() => setSupplierToDelete(null)}
+                  className="w-full py-3.5 bg-slate-100 text-slate-600 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] hover:bg-slate-200 transition-all active:scale-95"
+                >
+                  Annuler
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Header Area */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
@@ -164,9 +241,20 @@ export default function Fournisseurs() {
                   <div className="p-2 bg-slate-50 rounded-lg group-hover:bg-blue-50 transition-colors border border-slate-100">
                     <s.icon className="w-5 h-5 text-slate-400 group-hover:text-blue-600 transition-colors" />
                   </div>
-                  <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${s.statusColor}`}>
-                    {s.status}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {isAdmin && (
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }}
+                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Supprimer"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                    <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider ${s.statusColor}`}>
+                      {s.status}
+                    </span>
+                  </div>
                 </div>
 
                 <h3 className="text-lg font-bold text-slate-800 mb-1 leading-tight">{s.name}</h3>
@@ -250,6 +338,15 @@ export default function Fournisseurs() {
                   <span className={`px-3 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider ${s.statusColor}`}>
                     {s.status}
                   </span>
+                  {isAdmin && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleDelete(s.id); }}
+                      className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
+                      title="Supprimer"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
