@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet, NavLink, useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -18,6 +18,7 @@ import {
   User
 } from 'lucide-react';
 import authService from '../services/authService';
+import notificationService from '../services/notificationService';
 import { isAdmin } from '../services/permissionHelper';
 
 export default function DashboardLayout() {
@@ -25,20 +26,45 @@ export default function DashboardLayout() {
   const navigate = useNavigate();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  // Mock de notifications récentes
-  const recentNotifications = [
-    { id: 1, title: 'Stock critique', desc: 'Le produit "MacBook Pro" est presque épuisé (2 restants).', time: 'Il y a 5 min', type: 'alert' },
-    { id: 2, title: 'Mouvement suspect', desc: 'Sortie non habituelle de 50 unités de "Souris Logitech".', time: 'Il y a 1h', type: 'warning' },
-    { id: 3, title: 'Rapport généré', desc: 'Le rapport mensuel est prêt à être téléchargé.', time: 'Il y a 2h', type: 'info' },
-  ];
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const notifs = await notificationService.getAll();
+        setNotifications(Array.isArray(notifs) ? notifs : (notifs.data ?? []));
+        
+        try {
+          const unreadRes = await notificationService.getUnreadCount();
+          // API may return a number directly or { count: x }
+          setUnreadCount(typeof unreadRes === 'object' ? (unreadRes.count ?? unreadRes.unread_count ?? 0) : unreadRes);
+        } catch {
+          // Fallback if unread-count endpoint fails: count locally
+          const list = Array.isArray(notifs) ? notifs : (notifs.data ?? []);
+          setUnreadCount(list.filter(n => !n.read_at).length);
+        }
+      } catch (err) {
+        console.error("Failed to fetch notifications", err);
+      }
+    };
+
+    fetchNotifications();
+    
+    // Polling every 30 seconds
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const admin = isAdmin();
 
   const navItems = [
     { name: 'Tableau de bord', icon: LayoutDashboard, path: '/dashboard' },
     { name: 'Produits', icon: Box, path: '/products' },
-    ...(admin ? [{ name: 'Fournisseurs', icon: Users, path: '/suppliers' }] : []),
+    ...(admin ? [
+      { name: 'Fournisseurs', icon: Users, path: '/suppliers' },
+      { name: 'Utilisateurs', icon: Users, path: '/users' }
+    ] : []),
     { name: 'Mouvements de stock', icon: ArrowLeftRight, path: '/movements' },
     { name: 'Alertes', icon: BellRing, path: '/alerts' },
     ...(admin ? [
@@ -90,6 +116,7 @@ export default function DashboardLayout() {
     if (path.startsWith('/ai-insights/anomalies')) return 'Détection d\'anomalies';
     if (path.startsWith('/ai-insights')) return 'Analyses IA';
     if (path.startsWith('/profile')) return 'Mon Profil';
+    if (path.startsWith('/users')) return 'Utilisateurs';
     if (path.startsWith('/dashboard')) return 'Tableau de bord';
     return 'StockManager';
   };
@@ -232,11 +259,17 @@ export default function DashboardLayout() {
           <div className="flex items-center space-x-6">
             <div className="relative">
               <button 
-                onClick={() => setShowNotifications(!showNotifications)}
+                onClick={() => {
+                  const willShow = !showNotifications;
+                  setShowNotifications(willShow);
+                  if (willShow && unreadCount > 0) {
+                    notificationService.readAll().then(() => setUnreadCount(0)).catch(() => {});
+                  }
+                }}
                 className="relative p-2 text-slate-400 hover:text-blue-600 transition-colors"
               >
                 <Bell className="w-5 h-5" />
-                <span className="absolute top-1.5 right-2 block h-2 w-2 rounded-full bg-red-500 ring-1 ring-white"></span>
+                {unreadCount > 0 && <span className="absolute top-1.5 right-2 block h-2 w-2 rounded-full bg-red-500 ring-1 ring-white"></span>}
               </button>
 
               <AnimatePresence>
@@ -254,26 +287,47 @@ export default function DashboardLayout() {
                     >
                       <div className="p-4 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
                         <h3 className="font-bold text-slate-800">Notifications</h3>
-                        <span className="bg-blue-100 text-blue-700 text-[10px] font-black px-2 py-0.5 rounded-full">3 NOUVELLES</span>
+                        {unreadCount > 0 && (
+                          <span className="bg-blue-100 text-blue-700 text-[10px] font-black px-2 py-0.5 rounded-full">
+                            {unreadCount} NOUVELLE{unreadCount > 1 ? 'S' : ''}
+                          </span>
+                        )}
                       </div>
                       <div className="max-h-[300px] overflow-y-auto">
-                        {recentNotifications.map(notif => (
-                          <div key={notif.id} className="p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer flex gap-3">
+                        {notifications.length === 0 ? (
+                            <div className="p-6 text-center text-xs text-slate-400">Aucune notification.</div>
+                        ) : notifications.map(notif => {
+                          const typeCheck = (notif.data?.type || notif.type || '').toLowerCase();
+                          const isAlert = typeCheck.includes('alert') || typeCheck.includes('critical');
+                          const isWarning = typeCheck.includes('warning') || typeCheck.includes('low');
+                          
+                          const title = notif.data?.title || notif.title || 'Notification';
+                          const desc = notif.data?.message || notif.data?.desc || notif.data?.description || notif.message || '';
+                          
+                          let timeStr = 'Récemment';
+                          if (notif.created_at) {
+                            const d = new Date(notif.created_at);
+                            timeStr = d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+                          }
+
+                          return (
+                          <div key={notif.id} className={`p-4 border-b border-slate-50 hover:bg-slate-50 transition-colors cursor-pointer flex gap-3 ${!notif.read_at ? 'bg-blue-50/50' : ''}`}>
                             <div className={`p-2 rounded-full h-fit flex-shrink-0 ${
-                              notif.type === 'alert' ? 'bg-red-100 text-red-600' :
-                              notif.type === 'warning' ? 'bg-orange-100 text-orange-600' :
+                              isAlert ? 'bg-red-100 text-red-600' :
+                              isWarning ? 'bg-orange-100 text-orange-600' :
                               'bg-blue-100 text-blue-600'
                             }`}>
-                              {notif.type === 'alert' ? <AlertTriangle size={14}/> : 
-                               notif.type === 'warning' ? <Box size={14}/> : <FileText size={14}/>}
+                              {isAlert ? <AlertTriangle size={14}/> : 
+                               isWarning ? <Box size={14}/> : <FileText size={14}/>}
                             </div>
-                            <div>
-                              <h4 className="text-sm font-bold text-slate-800">{notif.title}</h4>
-                              <p className="text-xs text-slate-500 mt-0.5 leading-snug">{notif.desc}</p>
-                              <span className="text-[10px] font-bold text-slate-400 mt-1 block">{notif.time}</span>
+                            <div className="min-w-0">
+                              <h4 className="text-sm font-bold text-slate-800 truncate">{title}</h4>
+                              <p className="text-xs text-slate-500 mt-0.5 leading-snug break-words line-clamp-2">{desc}</p>
+                              <span className="text-[10px] font-bold text-slate-400 mt-1 block">{timeStr}</span>
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                       <Link 
                         to="/alerts" 

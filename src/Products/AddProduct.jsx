@@ -47,8 +47,12 @@ export default function AddProduct() {
                 });
                 if (p.image_url || p.image) {
                      const path = p.image_url || p.image;
-                     const fullPath = path.startsWith('http') ? path : `http://127.0.0.1:8000/storage/${path.replace(/^\//,'')}`;
-                     setImagePreview(fullPath);
+                     if (path.startsWith('http')) {
+                         setImagePreview(path);
+                     } else {
+                         const cleanPath = path.replace(/^\//, '').replace(/^storage\//, '');
+                         setImagePreview(`http://127.0.0.1:8000/storage/${cleanPath}`);
+                     }
                 }
             }).catch(err => {
                 toast.error("Impossible de charger les données du produit.");
@@ -113,7 +117,7 @@ export default function AddProduct() {
     };
 
     return (
-        <div className="w-full min-h-screen bg-gray-50 p-6 md:p-10 pb-24">
+        <div className="w-full min-h-screen bg-gray-50 p-6 md:p-8 pb-32">
 
             {/* Fil d'ariane */}
             <nav className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 mb-6">
@@ -122,9 +126,9 @@ export default function AddProduct() {
                 <span className="text-slate-900">{isEdit ? 'Modifier un Produit' : 'Nouveau Produit'}</span>
             </nav>
 
-            <header className="mb-10">
-                <h1 className="text-3xl font-black text-slate-900 tracking-tighter">{isEdit ? 'Modifier le produit' : 'Ajouter un produit'}</h1>
-                <p className="mt-1 text-sm text-slate-500 font-medium">
+            <header className="mb-8">
+                <h1 className="text-2xl font-black text-slate-900 tracking-tight">{isEdit ? 'Modifier le produit' : 'Ajouter un produit'}</h1>
+                <p className="mt-1 text-[13px] text-slate-500 font-medium">
                   {isEdit ? 'Mettez à jour les informations et spécifications de l\'article sélectionné.' : 'Référencez un nouvel article dans votre base de données centrale.'}
                 </p>
             </header>
@@ -133,8 +137,8 @@ export default function AddProduct() {
 
                 {/* Colonne Principale : Détails du produit (2/3) */}
                 <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-8">
-                        <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-600 mb-8 flex items-center gap-2">
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                        <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-600 mb-6 flex items-center gap-2">
                             <Package size={16} /> Informations de base
                         </h2>
 
@@ -148,7 +152,7 @@ export default function AddProduct() {
                                     onChange={handleChange}
                                     type="text"
                                     placeholder="Ex: Processeur Intel Core i9"
-                                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-2xl text-slate-900 font-semibold outline-none transition-all"
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-xl text-slate-900 font-semibold outline-none transition-all placeholder:text-slate-300"
                                 />
                             </div>
 
@@ -161,7 +165,7 @@ export default function AddProduct() {
                                     onChange={handleChange}
                                     rows="4"
                                     placeholder="Spécifications techniques, détails du modèle..."
-                                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-2xl text-slate-900 font-semibold outline-none transition-all resize-none"
+                                    className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-xl text-slate-900 font-semibold outline-none transition-all resize-none placeholder:text-slate-300"
                                 ></textarea>
                             </div>
 
@@ -175,7 +179,7 @@ export default function AddProduct() {
                                             name="categorie_id"
                                             value={productData.categorie_id}
                                             onChange={handleChange}
-                                            className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-2xl text-slate-900 font-bold outline-none appearance-none transition-all"
+                                            className="w-full pl-12 pr-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-xl text-slate-900 font-bold outline-none appearance-none transition-all cursor-pointer"
                                         >
                                             <option value="">Sélectionner une catégorie</option>
                                             {categories.map(c => (
@@ -195,7 +199,7 @@ export default function AddProduct() {
                                         type="number"
                                         step="0.01"
                                         placeholder="0.00"
-                                        className="w-full px-5 py-4 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-2xl text-slate-900 font-bold outline-none transition-all"
+                                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-blue-500 focus:bg-white rounded-xl text-slate-900 font-bold outline-none transition-all"
                                     />
                                 </div>
                             </div>
@@ -203,32 +207,32 @@ export default function AddProduct() {
                     </div>
 
                     {/* Gestion du Stock */}
-                    <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-8">
-                        <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-orange-500 mb-8 flex items-center gap-2">
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                        <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-orange-500 mb-6 flex items-center gap-2">
                             <BarChart3 size={16} /> Niveaux de Stock
                         </h2>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div className="space-y-2">
                                 <label className="text-xs font-bold text-slate-700 ml-1">Quantité Initiale</label>
-                                <input
-                                    name="quantite"
-                                    value={productData.quantite}
-                                    onChange={handleChange}
-                                    type="number"
-                                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 focus:border-blue-500 rounded-2xl text-slate-900 font-bold outline-none"
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-700 ml-1">Seuil d'alerte (min) *</label>
-                                <div className="relative">
                                     <input
-                                        name="seuil_min"
-                                        value={productData.seuil_min}
+                                        name="quantite"
+                                        value={productData.quantite}
                                         onChange={handleChange}
                                         type="number"
-                                        className="w-full px-5 py-4 bg-orange-50/30 border border-orange-100 focus:border-orange-500 rounded-2xl text-orange-700 font-bold outline-none"
+                                        className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-blue-500 rounded-xl text-slate-900 font-bold outline-none"
                                     />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold text-slate-700 ml-1">Seuil d'alerte (min) *</label>
+                                    <div className="relative">
+                                        <input
+                                            name="seuil_min"
+                                            value={productData.seuil_min}
+                                            onChange={handleChange}
+                                            type="number"
+                                            className="w-full px-4 py-2.5 bg-orange-50/30 border border-orange-100 focus:border-orange-500 rounded-xl text-orange-700 font-bold outline-none"
+                                        />
                                     <Info className="absolute right-4 top-1/2 -translate-y-1/2 text-orange-300" size={16} />
                                 </div>
                             </div>
@@ -238,8 +242,10 @@ export default function AddProduct() {
 
                 {/* Colonne Latérale : Média & Statut (1/3) */}
                 <div className="space-y-6">
-                    <div className="bg-white rounded-[2rem] shadow-sm border border-slate-100 p-8 text-center">
-                        <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-6">Image du produit</h2>
+                    <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 text-center">
+                        <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 mb-6 font-black uppercase tracking-[0.2em] text-slate-400 mb-6 flex items-center gap-2 justify-center">
+                            <ImageIcon size={14} /> Image du produit
+                        </h2>
                         <input 
                             type="file" 
                             accept="image/png, image/jpeg" 
@@ -265,13 +271,13 @@ export default function AddProduct() {
                         </p>
                     </div>
 
-                    <div className="bg-[#1e293b] rounded-[2rem] p-8 text-white shadow-xl">
-                        <h3 className="font-bold flex items-center gap-2 mb-4 text-blue-400"><Plus size={18} /> Aide Rapide</h3>
-                        <p className="text-xs text-slate-300 leading-relaxed mb-6">
+                    <div className="bg-[#1e293b] rounded-2xl p-6 text-white shadow-xl">
+                        <h3 className="text-sm font-bold flex items-center gap-2 mb-4 text-blue-400"><Plus size={18} /> Aide Rapide</h3>
+                        <p className="text-[11px] text-slate-400 leading-relaxed mb-6 font-medium">
                             Une fois ajouté, le produit pourra être lié à un fournisseur pour suivre les délais de réapprovisionnement.
                         </p>
                         <div className="bg-white/5 p-4 rounded-xl border border-white/10">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Impact Inventaire</p>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">Impact Inventaire</p>
                             <p className="text-sm font-bold text-blue-200">Total Valeur : {(productData.quantite * productData.prix || 0).toFixed(2)} €</p>
                         </div>
                     </div>
@@ -279,18 +285,18 @@ export default function AddProduct() {
             </div>
 
             {/* Barre d'action fixe */}
-            <div className="fixed bottom-0 left-0 md:left-64 right-0 bg-white/80 backdrop-blur-md border-t border-slate-100 p-6 flex items-center justify-end gap-6 z-30">
+            <div className="fixed bottom-0 left-0 md:left-64 right-0 bg-white/80 backdrop-blur-md border-t border-slate-100 p-4 flex items-center justify-end gap-6 z-30 px-8">
                 <button
                     onClick={() => navigate('/products')}
-                    className="text-xs font-bold text-slate-400 hover:text-red-500 transition-all"
+                    className="text-[11px] font-black uppercase tracking-widest text-slate-400 hover:text-red-500 transition-all"
                 >
                     Annuler
                 </button>
                 <button 
                     onClick={handleSave}
-                    className="bg-[#1e293b] text-white px-10 py-4 rounded-2xl font-black text-xs uppercase tracking-widest flex items-center gap-3 hover:bg-blue-600 transition-all shadow-xl shadow-blue-100"
+                    className="bg-[#1e293b] text-white px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] flex items-center gap-3 hover:bg-blue-600 transition-all shadow-lg active:scale-95"
                 >
-                    <Save size={18} /> {isEdit ? "Enregistrer les modifications" : "Confirmer l'ajout"}
+                    <Save size={14} /> {isEdit ? "Enregistrer les modifications" : "Confirmer l'ajout"}
                 </button>
             </div>
         </div>

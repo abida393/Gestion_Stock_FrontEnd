@@ -32,8 +32,10 @@ const CATEGORY_COLORS = [
 const getImageUrl = (path) => {
   if (!path) return null;
   if (path.startsWith('http')) return path;
-  if (path.startsWith('/storage')) return `http://127.0.0.1:8000${path}`;
-  return `http://127.0.0.1:8000/storage/${path}`;
+  
+  // Clean the path and ensure it's served from the backend storage
+  const cleanPath = path.replace(/^\//, '').replace(/^storage\//, '');
+  return `http://127.0.0.1:8000/storage/${cleanPath}`;
 };
 
 const normalise = (p, idx) => ({

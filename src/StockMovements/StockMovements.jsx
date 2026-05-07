@@ -28,6 +28,19 @@ const StockMovements = () => {
             return;
         }
 
+        const product = products.find(p => p.id.toString() === selectedProductId.toString());
+        const currentQty = product ? (product.quantite ?? product.quantite_stock ?? 0) : 0;
+
+        if (movementType === 'OUT' && currentQty <= 0) {
+            toast.error("Impossible d'effectuer une sortie : Le stock est de 0.");
+            return;
+        }
+
+        if (movementType === 'OUT' && currentQty < parseInt(quantity, 10)) {
+            toast.error(`Stock insuffisant. Stock disponible : ${currentQty}`);
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             await movementService.record({
@@ -38,6 +51,13 @@ const StockMovements = () => {
                 date_mouvement: date || undefined,
             });
             toast.success("Mouvement de stock enregistré avec succès !");
+            
+            // Refresh products to update quantities
+            productService.getAll().then((data) => {
+                const list = Array.isArray(data) ? data : (data.data ?? []);
+                setProducts(list);
+            }).catch(() => {});
+
             setQuantity("");
             setNote("");
         } catch (err) {

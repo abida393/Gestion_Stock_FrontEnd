@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import movementService from '../services/movementService';
 import productService from '../services/productService';
+import { isAdmin } from '../services/permissionHelper';
 
 const MovementHistory = () => {
     const [filterType, setFilterType] = useState('Tous');
@@ -130,13 +131,13 @@ const MovementHistory = () => {
             </header>
 
             {/* Toolbar - Filtres & Recherche */}
-            <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-100 mb-6 flex flex-wrap items-center gap-4">
+            <div className="bg-white rounded-xl p-3 shadow-sm border border-slate-100 mb-6 flex flex-wrap items-end gap-4">
                 <div className="relative flex-1 min-w-[200px]">
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
                     <select 
                         value={selectedProduct} 
                         onChange={(e) => setSelectedProduct(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/10 appearance-none text-[13px]"
+                        className="w-full h-10 pl-10 pr-4 bg-slate-50 border border-slate-200 rounded-lg font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/10 appearance-none text-[13px]"
                     >
                         <option value="Tous">Tous les produits</option>
                         {products.map(p => (
@@ -145,22 +146,22 @@ const MovementHistory = () => {
                     </select>
                 </div>
 
-                <div className="flex bg-slate-100 p-1 rounded-lg">
+                <div className="flex items-center bg-slate-100 p-1 rounded-lg h-10">
                     {['Tous', 'ENTRÉE', 'SORTIE'].map(t => (
                         <button
                             key={t}
                             onClick={() => setFilterType(t)}
-                            className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${filterType === t ? 'bg-[#1e293b] text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            className={`px-4 h-full flex items-center justify-center rounded-md text-xs font-bold transition-all ${filterType === t ? 'bg-[#1e293b] text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                         >
                             {t}
                         </button>
                     ))}
                 </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-end gap-3 flex-wrap">
                     <div className="flex flex-col">
-                        <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-0.5 ml-1">De</label>
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus-within:border-blue-400 transition-all">
+                        <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 ml-1">De</label>
+                        <div className="flex items-center gap-2 px-3 h-10 bg-slate-50 border border-slate-200 rounded-lg focus-within:border-blue-400 transition-all">
                             <Calendar size={13} className="text-slate-400 shrink-0" />
                             <input 
                                 type="date" 
@@ -171,8 +172,8 @@ const MovementHistory = () => {
                         </div>
                     </div>
                     <div className="flex flex-col">
-                        <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-0.5 ml-1">À</label>
-                        <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg focus-within:border-blue-400 transition-all">
+                        <label className="text-[9px] font-black uppercase text-slate-400 tracking-widest mb-1 ml-1">À</label>
+                        <div className="flex items-center gap-2 px-3 h-10 bg-slate-50 border border-slate-200 rounded-lg focus-within:border-blue-400 transition-all">
                             <Calendar size={13} className="text-slate-400 shrink-0" />
                             <input 
                                 type="date" 
@@ -185,16 +186,18 @@ const MovementHistory = () => {
                     {(startDate || endDate) && (
                         <button 
                             onClick={() => { setStartDate(''); setEndDate(''); }}
-                            className="mt-3 text-[9px] font-black uppercase text-slate-400 hover:text-red-500 transition-colors tracking-widest"
+                            className="h-10 px-2 text-[9px] font-black uppercase text-slate-400 hover:text-red-500 transition-colors tracking-widest flex items-center"
                         >
                             Effacer
                         </button>
                     )}
                 </div>
 
-                <button onClick={handleExport} className="bg-[#1e293b] text-white px-5 py-2 rounded-lg font-bold text-xs flex items-center gap-2 hover:bg-slate-800 transition-all">
-                    <Download size={16} /> Exporter
-                </button>
+                {isAdmin() && (
+                    <button onClick={handleExport} className="bg-[#1e293b] text-white px-5 h-10 rounded-lg font-bold text-xs flex items-center gap-2 hover:bg-slate-800 transition-all shrink-0 ml-auto xl:ml-0">
+                        <Download size={16} /> Exporter
+                    </button>
+                )}
             </div>
 
             {/* Table Section */}

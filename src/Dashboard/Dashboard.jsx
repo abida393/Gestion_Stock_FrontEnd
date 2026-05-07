@@ -119,60 +119,61 @@ export default function Dashboard() {
       });
     }).catch(() => {});
 
-    // Load recent movements & chart — admin only (simple users don't have GET /mouvements)
-    if (isAdmin()) {
-      // Recent movements for table
-      movementService.getAll({ per_page: 5 }).then((data) => {
-        const list = Array.isArray(data) ? data.slice(0, 5) : (data.data ?? []).slice(0, 5);
-          if (list.length > 0) {
-          setRecentMovements(list.map((m) => {
-            const isEntry = (m.type ?? '').toLowerCase().includes('entree') || (m.type ?? '').toLowerCase() === 'in';
-            const qty = m.quantite ?? m.quantity ?? 0;
-            const rawDate = m.date_mouvement || m.date || m.created_at;
-            return {
-              product: m.product?.nom ?? m.product?.name ?? m.produit?.nom ?? m.produit?.name ?? '—',
-              date: rawDate ? new Date(rawDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : '—',
-              type: isEntry ? 'Entrant' : 'Sortant',
-              qty: isEntry ? `+${qty}` : `-${qty}`,
-              status: 'TERMINÉ',
-              statusColor: 'bg-teal-100 text-teal-700',
-              isEntry,
-            };
-          }));
-        }
-      }).catch(() => {});
-
-      // All movements for weekly chart
-      movementService.getAll().then((data) => {
-        const all = Array.isArray(data) ? data : (data.data ?? []);
-        const now = new Date();
-        const dayOfWeek = now.getDay() === 0 ? 6 : now.getDay() - 1;
-        const weekStart = new Date(now);
-        weekStart.setDate(now.getDate() - dayOfWeek);
-        weekStart.setHours(0, 0, 0, 0);
-        const entrees = Array(7).fill(0);
-        const sorties = Array(7).fill(0);
-        all.forEach(m => {
-          const rawDate = m.date_mouvement || m.date || m.created_at;
-          if (!rawDate) return;
-          const d = new Date(rawDate);
-          const diff = Math.floor((d - weekStart) / (1000 * 60 * 60 * 24));
-          if (diff < 0 || diff > 6) return;
-          const isEntry = (m.type ?? '').toLowerCase().includes('entree');
+    // Load recent movements & chart
+    // Recent movements for table
+    movementService.getAll({ per_page: 5 }).then((data) => {
+      const list = Array.isArray(data) ? data.slice(0, 5) : (data.data ?? []).slice(0, 5);
+      if (list.length > 0) {
+        setRecentMovements(list.map((m) => {
+          const isEntry = (m.type ?? '').toLowerCase().includes('entree') || (m.type ?? '').toLowerCase() === 'in';
           const qty = m.quantite ?? m.quantity ?? 0;
-          if (isEntry) entrees[diff] += qty;
-          else sorties[diff] += qty;
-        });
-        setChartData({
-          labels: WEEK_LABELS,
-          datasets: [
-            { label: 'Entrées', data: entrees, backgroundColor: '#0f766e', barThickness: 32 },
-            { label: 'Sorties', data: sorties, backgroundColor: '#1e3a8a', barThickness: 32 },
-          ],
-        });
-      }).catch(() => {});
-    } else {
-      // Simple user: show empty chart placeholder
+          const rawDate = m.date_mouvement || m.date || m.created_at;
+          return {
+            product: m.product?.nom ?? m.product?.name ?? m.produit?.nom ?? m.produit?.name ?? '—',
+            date: rawDate ? new Date(rawDate).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : '—',
+            type: isEntry ? 'Entrant' : 'Sortant',
+            qty: isEntry ? `+${qty}` : `-${qty}`,
+            status: 'TERMINÉ',
+            statusColor: 'bg-teal-100 text-teal-700',
+            isEntry,
+          };
+        }));
+      } else {
+        setRecentMovements([]);
+      }
+    }).catch(() => {
+      setRecentMovements([]);
+    });
+
+    // All movements for weekly chart
+    movementService.getAll().then((data) => {
+      const all = Array.isArray(data) ? data : (data.data ?? []);
+      const now = new Date();
+      const dayOfWeek = now.getDay() === 0 ? 6 : now.getDay() - 1;
+      const weekStart = new Date(now);
+      weekStart.setDate(now.getDate() - dayOfWeek);
+      weekStart.setHours(0, 0, 0, 0);
+      const entrees = Array(7).fill(0);
+      const sorties = Array(7).fill(0);
+      all.forEach(m => {
+        const rawDate = m.date_mouvement || m.date || m.created_at;
+        if (!rawDate) return;
+        const d = new Date(rawDate);
+        const diff = Math.floor((d - weekStart) / (1000 * 60 * 60 * 24));
+        if (diff < 0 || diff > 6) return;
+        const isEntry = (m.type ?? '').toLowerCase().includes('entree');
+        const qty = m.quantite ?? m.quantity ?? 0;
+        if (isEntry) entrees[diff] += qty;
+        else sorties[diff] += qty;
+      });
+      setChartData({
+        labels: WEEK_LABELS,
+        datasets: [
+          { label: 'Entrées', data: entrees, backgroundColor: '#0f766e', barThickness: 32 },
+          { label: 'Sorties', data: sorties, backgroundColor: '#1e3a8a', barThickness: 32 },
+        ],
+      });
+    }).catch(() => {
       setChartData({
         labels: WEEK_LABELS,
         datasets: [
@@ -180,20 +181,20 @@ export default function Dashboard() {
           { label: 'Sorties', data: Array(7).fill(0), backgroundColor: '#1e3a8a', barThickness: 32 },
         ],
       });
-    }
+    });
 
     // Load top 5 products by stock
     productService.getAll().then((data) => {
       const all = Array.isArray(data) ? data : (data.data ?? []);
       const sorted = [...all]
-        .sort((a, b) => (b.quantite_stock ?? b.stock ?? 0) - (a.quantite_stock ?? a.stock ?? 0))
+        .sort((a, b) => (b.quantite ?? b.quantite_stock ?? b.stock ?? 0) - (a.quantite ?? a.quantite_stock ?? a.stock ?? 0))
         .slice(0, 5);
-      const maxQty = sorted[0] ? (sorted[0].quantite_stock ?? sorted[0].stock ?? 1) : 1;
+      const maxQty = sorted[0] ? (sorted[0].quantite ?? sorted[0].quantite_stock ?? sorted[0].stock ?? 1) : 1;
       setTopProducts(sorted.map((p, i) => ({
         name: p.nom ?? p.name ?? '—',
-        units: p.quantite_stock ?? p.stock ?? 0,
+        units: p.quantite ?? p.quantite_stock ?? p.stock ?? 0,
         color: TOP5_COLORS[i],
-        percentage: Math.round(((p.quantite_stock ?? p.stock ?? 0) / maxQty) * 100),
+        percentage: Math.round(((p.quantite ?? p.quantite_stock ?? p.stock ?? 0) / maxQty) * 100),
       })));
     }).catch(() => {});
   }, []);
@@ -221,9 +222,11 @@ export default function Dashboard() {
           <div className="mt-4">
             <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Total Produits</p>
             <p className="text-2xl font-black text-slate-900 mt-0.5">{kpis.total_products ?? '—'}</p>
-            {kpis.low_stock_count != null && (
-              <p className="text-[10px] text-red-500 font-bold mt-1">{kpis.low_stock_count} en stock bas</p>
-            )}
+            <div className="h-4 mt-1">
+              {kpis.low_stock_count != null && (
+                <p className="text-[10px] text-red-500 font-bold">{kpis.low_stock_count} en stock bas</p>
+              )}
+            </div>
           </div>
         </div>
 
@@ -237,9 +240,11 @@ export default function Dashboard() {
           <div className="mt-4 z-10 relative">
             <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Alertes Actives</p>
             <p className="text-2xl font-black text-red-600 mt-0.5">{kpis.active_alerts ?? '—'}</p>
-            {kpis.pending_orders != null && (
-              <p className="text-[10px] text-orange-500 font-bold mt-1">{kpis.pending_orders} commande(s) en attente</p>
-            )}
+            <div className="h-4 mt-1">
+              {kpis.pending_orders != null && (
+                <p className="text-[10px] text-orange-500 font-bold">{kpis.pending_orders} commande(s) en attente</p>
+              )}
+            </div>
           </div>
         </div>
 
@@ -256,6 +261,7 @@ export default function Dashboard() {
           <div className="mt-4 z-10 relative">
             <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Flux ce mois</p>
             <p className="text-2xl font-black text-slate-900 mt-0.5">{kpis.movements_this_month ?? '—'}</p>
+            <div className="h-4 mt-1"></div>
           </div>
         </div>
 
@@ -273,6 +279,7 @@ export default function Dashboard() {
                 ? `${Number(kpis.total_stock_value).toLocaleString('fr-FR', { style: 'currency', currency: 'MAD', maximumFractionDigits: 0 })}`
                 : '—'}
             </p>
+            <div className="h-4 mt-1"></div>
           </div>
         </div>
       </div>

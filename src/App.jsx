@@ -9,6 +9,7 @@ import ProduitDetail from "./Products/ProduitDetail";
 import AddProduct from "./Products/AddProduct";
 import Fournisseurs from "./Suppliers/Fournisseurs";
 import AddFournisseur from "./Suppliers/AddFournisseur";
+import FournisseurDetail from "./Suppliers/FournisseurDetail";
 import Categories from "./Products/Categories";
 import "./App.css";
 import StockMovements from './StockMovements/StockMovements';
@@ -22,6 +23,7 @@ import ThresholdConfig from "./StockAlerts/ThresholdConfig";
 import PrivateRoute from "./components/PrivateRoute";
 import AdminRoute from "./components/AdminRoute";
 import Profile from "./Profile/Profile";
+import Users from "./Users/Users";
 
 function App() {
   const [isInitializing, setIsInitializing] = useState(true);
@@ -75,14 +77,13 @@ function App() {
               <Route index element={<Fournisseurs />} />
               <Route path="add" element={<AddFournisseur />} />
               <Route path="edit/:id" element={<AddFournisseur />} />
+              <Route path=":id" element={<FournisseurDetail />} />
             </Route>
           </Route>
 
           <Route path="/movements" element={<DashboardLayout />}>
             <Route index element={<StockMovements />} />
-            <Route path="history" element={<AdminRoute />}>
-              <Route element={<MovementHistory />} index />
-            </Route>
+            <Route path="history" element={<MovementHistory />} />
           </Route>
 
           <Route path="/alerts" element={<DashboardLayout />}>
@@ -106,6 +107,12 @@ function App() {
 
           <Route path="/profile" element={<DashboardLayout />}>
             <Route index element={<Profile />} />
+          </Route>
+
+          <Route path="/users" element={<AdminRoute />}>
+            <Route element={<DashboardLayout />}>
+              <Route index element={<Users />} />
+            </Route>
           </Route>
         </Route>
 

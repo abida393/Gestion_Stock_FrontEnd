@@ -35,8 +35,8 @@ const orderService = {
   },
 
   /** PATCH /commandes/:id/statut — Change order state */
-  async updateStatus(id, status) {
-    const response = await api.patch(`/commandes/${id}/statut`, { status });
+  async updateStatus(id, statut) {
+    const response = await api.patch(`/commandes/${id}/statut`, { statut });
     return response.data;
   },
 };

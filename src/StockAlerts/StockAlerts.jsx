@@ -11,8 +11,8 @@ const StockAlerts = () => {
 
     const normalise = (a) => ({
         id: a.id,
-        product: a.product?.nom ?? a.product?.name ?? a.produit ?? '—',
-        sku: a.product?.sku ?? a.sku ?? '—',
+        product: a.product?.nom ?? a.product?.name ?? a.produit?.nom ?? a.produit?.name ?? '—',
+        sku: a.product?.sku ?? a.produit?.sku ?? a.sku ?? '—',
         stock: a.stock_actuel ?? a.stock ?? 0,
         threshold: a.seuil ?? a.threshold ?? 0,
         priority: a.priorite ?? a.priority ?? 'High',

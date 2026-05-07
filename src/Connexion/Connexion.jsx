@@ -79,7 +79,7 @@ const EyeIcon = ({ open }) =>
   );
 
 export default function Connexion() {
-  const [role, setRole] = useState("admin");
+  const role = "admin";
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [email, setEmail] = useState("");
@@ -284,60 +284,7 @@ export default function Connexion() {
             </p>
           </motion.div>
 
-          {/* Role Toggle */}
-          <motion.div
-            className="relative flex bg-gray-200 rounded-lg p-1 mb-6"
-            initial={{ y: 16, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.35, duration: 0.5 }}
-          >
-            <motion.div
-              className="absolute top-1 bottom-1 rounded-md shadow-sm"
-              style={{
-                background: isAdmin ? "#1A2E8A" : "#1D4ED8",
-                width: "calc(50% - 4px)",
-              }}
-              animate={{ left: isAdmin ? 4 : "calc(50%)" }}
-              transition={{ type: "spring", stiffness: 380, damping: 30 }}
-            />
-            {["admin", "utilisateur"].map((r) => (
-              <button
-                key={r}
-                onClick={() => setRole(r)}
-                className={`relative z-10 flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors duration-200 ${role === r
-                    ? "text-white"
-                    : "text-gray-500 hover:text-gray-700"
-                  }`}
-              >
-                {r.charAt(0).toUpperCase() + r.slice(1)}
-              </button>
-            ))}
-          </motion.div>
 
-          {/* Role badge */}
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={role}
-              className="flex items-center gap-2 mb-5"
-              initial={{ opacity: 0, y: -8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 8 }}
-              transition={{ duration: 0.25 }}
-            >
-              <span
-                className="inline-flex items-center gap-1.5 text-[10px] font-bold px-2.5 py-1 rounded-full"
-                style={{ background: accentColor + "22", color: accentDark }}
-              >
-                <span
-                  className="w-1 h-1 rounded-full"
-                  style={{ background: accentColor }}
-                />
-                {isAdmin
-                  ? "Accès Administrateur"
-                  : "Accès Utilisateur Standard"}
-              </span>
-            </motion.div>
-          </AnimatePresence>
 
           {/* Form */}
           <motion.div
