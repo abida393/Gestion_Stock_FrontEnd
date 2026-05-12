@@ -1,0 +1,60 @@
+FONCTIONNALITÉS DU COPILOTE IA STOCKMANAGER (AGENT D'ACTION)
+==========================================================
+
+Votre chatbot n'est pas qu'un simple assistant conversationnel, c'est un agent capable d'interagir directement avec votre système de gestion de stock.
+
+1. ANALYSE EN TEMPS RÉEL
+------------------------
+L'IA a accès à votre base de données (PostgreSQL) et peut analyser :
+- Le niveau de stock actuel des produits critiques.
+- Les alertes de stock bas ou d'anomalies récentes.
+- Les prévisions générées par l'agent Python.
+
+2. ACTIONS INTERACTIVES (ACTIONABLE AI)
+---------------------------------------
+L'IA peut suggérer et exécuter des actions :
+- Détection de besoin de commande : Si l'IA voit un stock bas, elle propose un bouton "Générer le bon de commande".
+- Création automatique : Un clic sur le bouton crée une commande réelle dans Laravel associée au bon fournisseur.
+
+3. VISUALISATION DE DONNÉES (MINI-GRAPHIQUES)
+---------------------------------------------
+Demandez des évolutions et l'IA affichera des graphiques Recharts/Chart.js :
+- Courbes d'évolution des mouvements de stock.
+- Histogrammes de répartition.
+
+4. COMMANDE VOCALE (SPEECH-TO-TEXT)
+-----------------------------------
+Utilisez l'icône "Micro" pour dicter vos questions au lieu de les taper. Idéal pour une utilisation rapide sur le terrain.
+
+5. FORMATAGE INTELLIGENT
+------------------------
+- Badges colorés pour les quantités et les alertes.
+- Formatage Markdown pour une lecture claire des rapports.
+
+
+EXEMPLES DE QUESTIONS À POSER
+=============================
+
+ÉTAT DES STOCKS & ALERTES
+-------------------------
+- "Quels sont les produits en rupture de stock actuellement ?"
+- "Fais-moi un résumé des 5 dernières alertes critiques."
+- "Quels produits ont le stock le plus bas ?"
+
+ACTIONS & COMMANDES
+-------------------
+- "Suggère-moi une commande pour le produit Macbook Air."
+- "Qu'est-ce que je devrais commander aujourd'hui pour éviter les ruptures ?"
+- "Génère une suggestion de réapprovisionnement pour les produits en stock bas."
+
+ANALYSES & GRAPHIQUES
+---------------------
+- "Montre-moi l'évolution des mouvements de stock cette semaine." (Affiche un graphique)
+- "Affiche un graphique de l'historique des sorties récentes."
+- "Analyse la tendance de mes ventes par rapport au stock actuel."
+
+CONSEILS STRATÉGIQUES
+---------------------
+- "Comment puis-je optimiser mes coûts de stockage selon l'IA ?"
+- "Donne-moi des conseils pour améliorer ma logistique avec ces données."
+- "Quel est le risque de rupture pour le mois prochain ?"

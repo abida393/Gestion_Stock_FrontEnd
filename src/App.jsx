@@ -24,6 +24,8 @@ import PrivateRoute from "./components/PrivateRoute";
 import AdminRoute from "./components/AdminRoute";
 import Profile from "./Profile/Profile";
 import Users from "./Users/Users";
+import Orders from "./Orders/Orders";
+
 
 function App() {
   const [isInitializing, setIsInitializing] = useState(true);
@@ -80,6 +82,11 @@ function App() {
               <Route path=":id" element={<FournisseurDetail />} />
             </Route>
           </Route>
+
+          <Route path="/orders" element={<DashboardLayout />}>
+            <Route index element={<Orders />} />
+          </Route>
+
 
           <Route path="/movements" element={<DashboardLayout />}>
             <Route index element={<StockMovements />} />

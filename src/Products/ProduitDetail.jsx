@@ -18,6 +18,7 @@ import {
   Loader2
 } from 'lucide-react';
 import productService from '../services/productService';
+import api from '../services/api';
 
 const getImageUrl = (path) => {
   if (!path) return null;
@@ -33,12 +34,23 @@ export default function ProduitDetail() {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const [prevision, setPrevision] = useState(null);
 
   useEffect(() => {
     const fetchParams = async () => {
       try {
         const data = await productService.getById(id);
         setProduct(data.data || data); // selon la structure API Laravel
+        
+        try {
+            const previsionsRes = await api.get('/previsions', { params: { produit_id: id } });
+            const list = Array.isArray(previsionsRes.data) ? previsionsRes.data : (previsionsRes.data.data ?? []);
+            if (list.length > 0) {
+                setPrevision(list[list.length - 1]);
+            }
+        } catch (e) {
+            console.error("Error fetching previsions", e);
+        }
       } catch (err) {
         setError(true);
       } finally {
@@ -255,7 +267,7 @@ export default function ProduitDetail() {
                     <p className="text-[8px] font-bold text-blue-300 uppercase tracking-widest">Demande Prévue</p>
                     <TrendingUp className="w-3 h-3 text-emerald-400" />
                   </div>
-                  <p className="text-lg font-black">124 unités</p>
+                  <p className="text-lg font-black">{prevision ? prevision.quantite_predite : '--'} unités</p>
                 </div>
 
                 <div className="bg-white/5 border border-white/10 rounded-xl p-4">
@@ -263,7 +275,7 @@ export default function ProduitDetail() {
                     <p className="text-[8px] font-bold text-blue-300 uppercase tracking-widest">Quantité EOQ</p>
                     <div className="w-3.5 h-3.5 rounded bg-blue-500/20 flex items-center justify-center font-mono text-[8px] font-bold">±</div>
                   </div>
-                  <p className="text-lg font-black">45 unités</p>
+                  <p className="text-lg font-black">{prevision ? prevision.eoq : '--'} unités</p>
                 </div>
 
                 <div className="bg-white/5 border border-white/10 rounded-xl p-4">
@@ -271,12 +283,12 @@ export default function ProduitDetail() {
                     <p className="text-[8px] font-bold text-blue-300 uppercase tracking-widest">Confiance</p>
                     <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                   </div>
-                  <p className="text-lg font-black text-emerald-400">98%</p>
+                  <p className="text-lg font-black text-emerald-400">{prevision ? (prevision.confiance * 100).toFixed(0) + '%' : '--'}</p>
                 </div>
               </div>
 
               <p className="mt-6 text-[10px] font-medium text-blue-100/40 italic leading-relaxed">
-                "Réapprovisionnement recommandé sous 14 jours."
+                {prevision ? `"Basé sur les données de la période ${prevision.periode}."` : '"Aucune donnée IA disponible."'}
               </p>
             </div>
           </div>

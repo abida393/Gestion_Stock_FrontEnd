@@ -13,11 +13,22 @@ import {
   ArrowLeft,
   Loader2,
   Trash2,
-  AlertTriangle
+  AlertTriangle,
+  ShoppingCart,
+  Sparkles,
+  Plus,
+  Minus,
+  Send,
+  X,
+  User
 } from 'lucide-react';
+
 import supplierService from '../services/supplierService';
 import authService from '../services/authService';
+import orderService from '../services/orderService';
 import toast from 'react-hot-toast';
+import { AnimatePresence, motion } from 'framer-motion';
+
 
 export default function FournisseurDetail() {
   const { id } = useParams();
@@ -26,6 +37,64 @@ export default function FournisseurDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showOrderChoice, setShowOrderChoice] = useState(false);
+  const [showManualOrder, setShowManualOrder] = useState(false);
+  const [manualQuantities, setManualQuantities] = useState({});
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+
+  const handleManualQuantityChange = (productId, delta) => {
+    setManualQuantities(prev => {
+      const current = prev[productId] || 0;
+      const next = Math.max(0, current + delta);
+      return { ...prev, [productId]: next };
+    });
+  };
+
+  const handleCreateManualOrder = async () => {
+    const selectedItems = Object.entries(manualQuantities)
+      .filter(([_, qty]) => qty > 0)
+      .map(([id, qty]) => {
+        const prod = supplier.formattedProducts.find(p => p.id === parseInt(id));
+        return {
+          produit_id: prod.id,
+          quantite: qty,
+          prix: prod.prix
+        };
+      });
+
+    if (selectedItems.length === 0) {
+      toast.error("Veuillez sélectionner au moins un produit.");
+      return;
+    }
+
+    setIsCreatingOrder(true);
+    try {
+      await orderService.create({
+        fournisseur_id: supplier.id,
+        date_commande: new Date().toISOString().split('T')[0],
+        lignes: selectedItems
+      });
+      toast.success("Bon de commande généré avec succès !");
+      setShowManualOrder(false);
+      setManualQuantities({});
+      navigate('/orders');
+    } catch (err) {
+      toast.error("Erreur lors de la création de la commande.");
+    } finally {
+      setIsCreatingOrder(false);
+    }
+  };
+
+  const handleAICmd = () => {
+    setShowOrderChoice(false);
+    // On simule l'ouverture du chat avec un event custom que le FloatingChatbot écoutera
+    const event = new CustomEvent('open-chat-ai', { 
+      detail: { message: `Peux-tu me proposer une commande optimisée pour le fournisseur ${supplier.nom} ?` } 
+    });
+    window.dispatchEvent(event);
+    toast.success("L'IA analyse le stock pour ce fournisseur...");
+  };
+
 
   const user = authService.getUser() || {};
   const roleStr = JSON.stringify(user.roles || user.role || user.role_id || '').toLowerCase();
@@ -278,22 +347,135 @@ export default function FournisseurDetail() {
               </div>
            </div>
 
-           {/* Quick Actions Card */}
-           <div className="bg-slate-900 p-6 rounded-2xl shadow-xl text-white relative overflow-hidden group">
-              <div className="absolute top-0 right-0 -m-8 w-40 h-40 bg-blue-600/10 rounded-full blur-3xl group-hover:bg-blue-600/20 transition-all duration-700"></div>
-              <div className="relative z-10">
-                <h4 className="text-[9px] font-black text-blue-300 uppercase tracking-[0.2em] mb-4">Commandes Récentes</h4>
-                <div className="text-center py-6 border border-white/10 rounded-xl bg-white/5">
-                   <Package className="w-8 h-8 text-blue-400/50 mx-auto mb-2" />
-                   <p className="text-[11px] font-bold text-slate-400">Aucune commande active</p>
+            {/* Quick Actions Card */}
+            <div className="bg-slate-900 p-6 rounded-2xl shadow-xl text-white relative overflow-hidden group">
+               <div className="absolute top-0 right-0 -m-8 w-40 h-40 bg-blue-600/10 rounded-full blur-3xl group-hover:bg-blue-600/20 transition-all duration-700"></div>
+               <div className="relative z-10">
+                 <h4 className="text-[9px] font-black text-blue-300 uppercase tracking-[0.2em] mb-4">Commandes Récentes</h4>
+                 <div className="text-center py-6 border border-white/10 rounded-xl bg-white/5">
+                    <Package className="w-8 h-8 text-blue-400/50 mx-auto mb-2" />
+                    <p className="text-[11px] font-bold text-slate-400">Aucune commande active</p>
+                 </div>
+                 <button 
+                  onClick={() => setShowOrderChoice(true)}
+                  className="w-full mt-4 py-3 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-900/40 active:scale-95 flex items-center justify-center gap-2"
+                >
+                   <ShoppingCart size={14} /> Nouvelle Commande
+                 </button>
+               </div>
+            </div>
+         </div>
+       </div>
+
+       {/* Choice Modal */}
+       <AnimatePresence>
+         {showOrderChoice && (
+           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowOrderChoice(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
+             <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-white rounded-[32px] p-8 w-full max-w-sm shadow-2xl overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-blue-600 to-indigo-600"></div>
+                <h3 className="text-xl font-black text-slate-900 mb-2">Nouvelle Commande</h3>
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-8">Choisissez votre méthode</p>
+                
+                <div className="grid grid-cols-1 gap-4">
+                   <button 
+                    onClick={handleAICmd}
+                    className="group relative p-6 bg-slate-50 hover:bg-blue-600 rounded-3xl transition-all duration-300 text-left overflow-hidden border border-slate-100"
+                   >
+                      <div className="flex items-center gap-4 relative z-10">
+                        <div className="p-3 bg-blue-100 group-hover:bg-blue-500 text-blue-600 group-hover:text-white rounded-2xl transition-colors">
+                          <Sparkles size={24} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-black text-slate-900 group-hover:text-white transition-colors">Laisser l'IA décider</p>
+                          <p className="text-[10px] font-bold text-slate-400 group-hover:text-blue-200 transition-colors">Optimisation intelligente</p>
+                        </div>
+                      </div>
+                      <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-blue-200/20 rounded-full blur-2xl group-hover:bg-white/10"></div>
+                   </button>
+
+                   <button 
+                    onClick={() => { setShowOrderChoice(false); setShowManualOrder(true); }}
+                    className="group relative p-6 bg-slate-50 hover:bg-slate-900 rounded-3xl transition-all duration-300 text-left overflow-hidden border border-slate-100"
+                   >
+                      <div className="flex items-center gap-4 relative z-10">
+                        <div className="p-3 bg-slate-200 group-hover:bg-slate-800 text-slate-600 group-hover:text-white rounded-2xl transition-colors">
+                          <User size={24} />
+
+                        </div>
+                        <div>
+                          <p className="text-sm font-black text-slate-900 group-hover:text-white transition-colors">Faire manuellement</p>
+                          <p className="text-[10px] font-bold text-slate-400 group-hover:text-slate-500 transition-colors">Saisie simple et rapide</p>
+                        </div>
+                      </div>
+                      <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-slate-200/20 rounded-full blur-2xl group-hover:bg-white/5"></div>
+                   </button>
                 </div>
-                <button className="w-full mt-4 py-3 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-900/40">
-                  Nouvelle Commande
-                </button>
-              </div>
+             </motion.div>
            </div>
-        </div>
-      </div>
+         )}
+       </AnimatePresence>
+
+       {/* Manual Order Modal */}
+       <AnimatePresence>
+         {showManualOrder && (
+           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowManualOrder(false)} className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" />
+             <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 20, opacity: 0 }} className="relative bg-white rounded-[32px] w-full max-w-lg shadow-2xl flex flex-col max-h-[85vh]">
+                <div className="p-6 border-b border-slate-50 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900">Commande Manuelle</h3>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{supplier.nom}</p>
+                  </div>
+                  <button onClick={() => setShowManualOrder(false)} className="p-2 hover:bg-slate-50 rounded-xl text-slate-400 transition-all"><X size={20} /></button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                  {supplier.formattedProducts?.map((prod) => (
+                    <div key={prod.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-blue-200 transition-all">
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-slate-800 truncate">{prod.nom}</p>
+                        <p className="text-[10px] font-black text-blue-600">{Number(prod.prix).toFixed(2)} € /unité</p>
+
+                      </div>
+                      <div className="flex items-center gap-3 bg-white p-1 rounded-xl shadow-sm border border-slate-100">
+                        <button 
+                          onClick={() => handleManualQuantityChange(prod.id, -1)}
+                          className="p-1.5 hover:bg-slate-50 text-slate-400 hover:text-red-500 transition-all"
+                        ><Minus size={14} /></button>
+                        <span className="text-xs font-black w-8 text-center text-slate-900">{manualQuantities[prod.id] || 0}</span>
+                        <button 
+                          onClick={() => handleManualQuantityChange(prod.id, 1)}
+                          className="p-1.5 hover:bg-slate-50 text-slate-400 hover:text-blue-600 transition-all"
+                        ><Plus size={14} /></button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="p-6 bg-slate-50 border-t border-slate-100 flex flex-col gap-4">
+                   <div className="flex justify-between items-center px-2">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Estimé</p>
+                      <p className="text-xl font-black text-slate-900">
+                        {Object.entries(manualQuantities).reduce((total, [id, qty]) => {
+                          const p = supplier.formattedProducts.find(p => p.id === parseInt(id));
+                          return total + (p.prix * qty);
+                        }, 0).toLocaleString('fr-FR')} <span className="text-sm">€</span>
+                      </p>
+                   </div>
+                   <button 
+                    onClick={handleCreateManualOrder}
+                    disabled={isCreatingOrder || Object.values(manualQuantities).every(q => q === 0)}
+                    className="w-full py-4 bg-blue-600 text-white rounded-2xl text-[11px] font-black uppercase tracking-[0.1em] hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 disabled:opacity-50 disabled:shadow-none flex items-center justify-center gap-3"
+                   >
+                      {isCreatingOrder ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Send size={16} /> Générer le bon de commande</>}
+                   </button>
+                </div>
+             </motion.div>
+           </div>
+         )}
+       </AnimatePresence>
     </div>
   );
 }
+

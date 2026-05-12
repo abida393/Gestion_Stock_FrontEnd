@@ -15,11 +15,15 @@ import {
   ChevronDown,
   AlertTriangle,
   X,
-  User
+  User,
+  ShoppingCart
 } from 'lucide-react';
+
 import authService from '../services/authService';
 import notificationService from '../services/notificationService';
 import { isAdmin } from '../services/permissionHelper';
+import FloatingChatbot from '../components/Chat/FloatingChatbot';
+
 
 export default function DashboardLayout() {
   const location = useLocation();
@@ -63,8 +67,10 @@ export default function DashboardLayout() {
     { name: 'Produits', icon: Box, path: '/products' },
     ...(admin ? [
       { name: 'Fournisseurs', icon: Users, path: '/suppliers' },
+      { name: 'Commandes', icon: ShoppingCart, path: '/orders' },
       { name: 'Utilisateurs', icon: Users, path: '/users' }
     ] : []),
+
     { name: 'Mouvements de stock', icon: ArrowLeftRight, path: '/movements' },
     { name: 'Alertes', icon: BellRing, path: '/alerts' },
     ...(admin ? [
@@ -107,7 +113,9 @@ export default function DashboardLayout() {
     if (path.startsWith('/products')) return 'Produits';
     if (path.startsWith('/suppliers/add')) return 'Ajouter un fournisseur';
     if (path.startsWith('/suppliers')) return 'Fournisseurs';
+    if (path.startsWith('/orders')) return 'Commandes Fournisseurs';
     if (path.startsWith('/movements/history')) return 'Historique des mouvements';
+
     if (path.startsWith('/movements')) return 'Mouvements de stock';
     if (path.startsWith('/alerts/thresholds')) return 'Configuration des seuils';
     if (path.startsWith('/alerts')) return 'Alertes de stock';
@@ -359,7 +367,10 @@ export default function DashboardLayout() {
             <Outlet />
           </div>
         </main>
+
+        <FloatingChatbot />
       </div>
     </div>
+
   );
 }

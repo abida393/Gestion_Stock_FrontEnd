@@ -7,7 +7,8 @@ import {
   TrendingUp,
   TrendingDown,
   MoreVertical,
-  ArrowRight
+  ArrowRight,
+  HeartPulse
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -23,6 +24,10 @@ import dashboardService from '../services/dashboardService';
 import movementService from '../services/movementService';
 import productService from '../services/productService';
 import { isAdmin } from '../services/permissionHelper';
+import api from '../services/api';
+import alertService from '../services/alertService';
+import toast from 'react-hot-toast';
+
 
 ChartJS.register(
   CategoryScale,
@@ -104,7 +109,11 @@ export default function Dashboard() {
   });
   const [recentMovements, setRecentMovements] = useState([]);
   const [chartData, setChartData] = useState(null);
+  const [healthScore, setHealthScore] = useState(null);
   const [topProducts, setTopProducts] = useState([]);
+  const [activeAlerts, setActiveAlerts] = useState([]);
+  const [loadingAlerts, setLoadingAlerts] = useState(true);
+
 
   useEffect(() => {
     // Load KPIs
@@ -197,7 +206,41 @@ export default function Dashboard() {
         percentage: Math.round(((p.quantite ?? p.quantite_stock ?? p.stock ?? 0) / maxQty) * 100),
       })));
     }).catch(() => {});
+
+    // Load inventory health score
+    api.get('/ai/health-score').then(r => setHealthScore(r.data)).catch(() => {});
+
+    // Load real active alerts
+    alertService.getActive().then(res => {
+      setActiveAlerts(res.data || res || []);
+    }).catch(() => {
+      console.error("Failed to load alerts");
+    }).finally(() => {
+      setLoadingAlerts(false);
+    });
   }, []);
+
+  const handleAIOrder = (alert) => {
+    const product = alert.produit?.nom || "le produit";
+    const event = new CustomEvent('open-chat-ai', { 
+      detail: { 
+        message: `Je souhaite passer une commande pour ${product} car il y a une alerte : ${alert.message}. Peux-tu me proposer une commande optimisée ?` 
+      } 
+    });
+    window.dispatchEvent(event);
+    toast.success(`L'IA analyse le stock pour ${product}...`);
+  };
+
+  const handleIgnoreAlert = async (id) => {
+    try {
+      await alertService.resolve(id);
+      setActiveAlerts(prev => prev.filter(a => a.id !== id));
+      toast.success("Alerte ignorée");
+    } catch {
+      toast.error("Erreur lors de la résolution");
+    }
+  };
+
 
   return (
     <div className="space-y-8">
@@ -208,7 +251,7 @@ export default function Dashboard() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
         {/* Total Products */}
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition-shadow">
           <div className="flex justify-between items-start">
@@ -274,12 +317,56 @@ export default function Dashboard() {
           </div>
           <div className="mt-4 z-10 relative">
             <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Valeur du Stock</p>
-            <p className="text-2xl font-black text-slate-900 mt-0.5">
+            <p className="text-xl font-black text-slate-900 mt-0.5">
               {kpis.total_stock_value != null
-                ? `${Number(kpis.total_stock_value).toLocaleString('fr-FR', { style: 'currency', currency: 'MAD', maximumFractionDigits: 0 })}`
+                ? (() => {
+                    const v = Number(kpis.total_stock_value);
+                    if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(2)}M MAD`;
+                    if (v >= 1_000) return `${(v / 1_000).toFixed(1)}K MAD`;
+                    return `${v.toLocaleString('fr-FR')} MAD`;
+                  })()
                 : '—'}
             </p>
             <div className="h-4 mt-1"></div>
+          </div>
+        </div>
+
+        {/* Inventory Health Score */}
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition-shadow">
+          <div className="flex justify-between items-start">
+            <div className={`p-2.5 rounded-xl ${
+              healthScore?.score >= 80 ? 'bg-emerald-50 text-emerald-700' :
+              healthScore?.score >= 60 ? 'bg-blue-50 text-blue-700' :
+              healthScore?.score >= 40 ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
+            }`}>
+              <HeartPulse size={18} />
+            </div>
+          </div>
+          <div className="mt-4">
+            <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Santé Inventaire</p>
+            <div className="flex items-baseline gap-2 mt-0.5">
+              <p className={`text-2xl font-black ${
+                healthScore?.score >= 80 ? 'text-emerald-600' :
+                healthScore?.score >= 60 ? 'text-blue-600' :
+                healthScore?.score >= 40 ? 'text-amber-600' : 'text-red-600'
+              }`}>{healthScore ? `${healthScore.score}%` : '—'}</p>
+              <span className={`text-[10px] font-bold ${
+                healthScore?.score >= 80 ? 'text-emerald-500' :
+                healthScore?.score >= 60 ? 'text-blue-500' :
+                healthScore?.score >= 40 ? 'text-amber-500' : 'text-red-500'
+              }`}>{healthScore?.label ?? ''}</span>
+            </div>
+            <div className="h-4 mt-1">
+              {healthScore && (
+                <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden mt-1">
+                  <div className={`h-full rounded-full transition-all duration-1000 ${
+                    healthScore.score >= 80 ? 'bg-emerald-500' :
+                    healthScore.score >= 60 ? 'bg-blue-500' :
+                    healthScore.score >= 40 ? 'bg-amber-500' : 'bg-red-500'
+                  }`} style={{ width: `${healthScore.score}%` }} />
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -377,51 +464,45 @@ export default function Dashboard() {
           </div>
 
           <div className="flex flex-col gap-4">
-            {/* Alert 1 */}
-            <div className="w-full p-4 bg-slate-50 rounded-xl border-l-[3px] border-l-red-600 flex items-center gap-4 shadow-sm border border-slate-100">
-              <div className="p-2 bg-red-100 rounded-lg text-red-600">
-                <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-bold text-slate-800 truncate">Stock Critique Bas : Adaptateurs USB-C</h4>
-                <p className="text-xs text-slate-500 mt-0.5">Plus que 3 unités restantes dans l'Entrepôt A.</p>
-              </div>
-              <button className="bg-slate-900 text-white text-[10px] tracking-wide uppercase font-bold px-3 py-1.5 rounded-md hover:bg-slate-800 transition-colors flex-shrink-0">
-                Commander
-              </button>
-            </div>
-
-            {/* Alert 2 */}
-            <div className="w-full p-4 bg-orange-50/50 rounded-xl border-l-[3px] border-l-orange-400 flex items-center gap-4 shadow-sm border border-slate-100">
-              <div className="p-2 bg-orange-100 rounded-lg text-orange-600">
-                <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-bold text-slate-800 truncate">Expédition Retardée : Global Logistics</h4>
-                <p className="text-xs text-slate-500 mt-0.5">L'expédition #TR-982 a 48h de retard.</p>
-              </div>
-              <button className="text-slate-400 hover:text-slate-600 flex-shrink-0">
-                <MoreVertical className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Alert 3 */}
-            <div className="w-full p-4 bg-slate-50 rounded-xl border-l-[3px] border-l-red-600 flex items-center gap-4 shadow-sm border border-slate-100">
-              <div className="p-2 bg-black/5 rounded-lg text-red-600">
-                <div className="w-5 h-5 rounded-full bg-red-600 flex items-center justify-center flex-shrink-0">
-                  <div className="w-2.5 h-0.5 bg-white rounded-full translate-x-px rotate-45 absolute border-none"></div>
-                  <div className="w-2.5 h-0.5 bg-white rounded-full -translate-x-px -rotate-45 absolute border-none"></div>
+            {loadingAlerts ? (
+               <div className="flex items-center justify-center py-10">
+                 <div className="w-6 h-6 border-2 border-slate-200 border-t-teal-600 rounded-full animate-spin" />
+               </div>
+            ) : activeAlerts.length > 0 ? activeAlerts.map((alert) => (
+              <div key={alert.id} className={`w-full p-4 rounded-xl border-l-[3px] flex items-center gap-4 shadow-sm border border-slate-100 ${
+                alert.type === 'critique' || alert.type === 'rupture' ? 'bg-red-50 border-l-red-600' : 'bg-orange-50/50 border-l-orange-400'
+              }`}>
+                <div className={`p-2 rounded-lg ${
+                  alert.type === 'critique' || alert.type === 'rupture' ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'
+                }`}>
+                  <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-bold text-slate-800 truncate">{alert.message}</h4>
+                  <p className="text-xs text-slate-500 mt-0.5">{alert.produit?.nom ? `Produit : ${alert.produit.nom}` : 'Alerte système'}</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={() => handleIgnoreAlert(alert.id)}
+                    className="bg-slate-200 text-slate-600 text-[10px] tracking-wide uppercase font-bold px-3 py-1.5 rounded-md hover:bg-slate-300 transition-colors flex-shrink-0"
+                  >
+                    Ignorer
+                  </button>
+                  <button 
+                    onClick={() => handleAIOrder(alert)}
+                    className="bg-slate-900 text-white text-[10px] tracking-wide uppercase font-bold px-3 py-1.5 rounded-md hover:bg-slate-800 transition-colors flex-shrink-0"
+                  >
+                    Commander
+                  </button>
                 </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-bold text-slate-800 truncate">Garantie Expirée : Chariot élévateur #4</h4>
-                <p className="text-xs text-slate-500 mt-0.5">Inspection de sécurité requise avant le prochain service.</p>
+            )) : (
+              <div className="text-center py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Aucune alerte active</p>
               </div>
-              <button className="bg-slate-200 text-slate-600 text-[10px] tracking-wide uppercase font-bold px-3 py-1.5 rounded-md hover:bg-slate-300 transition-colors flex-shrink-0">
-                Ignorer
-              </button>
-            </div>
+            )}
           </div>
+
         </div>
 
         {/* Intelligence Banner - Premium Redesign */}
