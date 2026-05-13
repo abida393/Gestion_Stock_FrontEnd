@@ -17,7 +17,7 @@ const authService = {
     const user = payload.user;
 
     if (token) {
-      localStorage.setItem('token', token);
+      sessionStorage.setItem('token', token);
       if (user) {
         localStorage.setItem('user', JSON.stringify(user));
       }
@@ -41,7 +41,7 @@ const authService = {
     try {
       await api.post('/auth/logout');
     } finally {
-      localStorage.removeItem('token');
+      sessionStorage.removeItem('token');
       localStorage.removeItem('user');
       // For legacy compatibility if any other code uses old keys
       localStorage.removeItem('sanctum_token');
@@ -73,7 +73,7 @@ const authService = {
 
   /** Helper: Get current Bearer token */
   getToken() {
-    return localStorage.getItem('token');
+    return sessionStorage.getItem('token');
   },
 
   /** Helper: Check if authenticated */

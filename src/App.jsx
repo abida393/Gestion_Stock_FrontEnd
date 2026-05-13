@@ -31,7 +31,7 @@ import ABCAnalysis from "./AI_Insights/ABCAnalysis";
 
 function App() {
   const [isInitializing, setIsInitializing] = useState(true);
-  const isAuthenticated = !!localStorage.getItem('token');
+  const isAuthenticated = !!sessionStorage.getItem('token');
 
   useEffect(() => {
     const initAuth = async () => {

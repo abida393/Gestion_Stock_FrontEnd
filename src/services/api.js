@@ -11,7 +11,7 @@ const api = axios.create({
 
 // Request interceptor: Attach token
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
+  const token = sessionStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -28,7 +28,7 @@ api.interceptors.response.use(
       // Avoid redirect loops if we're already on the login page or checking auth
       const isAuthCall = config.url.includes('/login') || config.url.includes('/me');
       if (!isAuthCall) {
-        localStorage.removeItem('token');
+        sessionStorage.removeItem('token');
         localStorage.removeItem('user');
         window.location.href = '/';
       }
