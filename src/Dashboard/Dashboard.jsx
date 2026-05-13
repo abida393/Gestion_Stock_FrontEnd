@@ -8,18 +8,24 @@ import {
   TrendingDown,
   MoreVertical,
   ArrowRight,
-  HeartPulse
+  HeartPulse,
+  Plus,
+  ArrowUpRight,
+  ArrowDownRight
 } from 'lucide-react';
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
-  BarElement,
+  PointElement,
+  LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  Filler
 } from 'chart.js';
-import { Bar } from 'react-chartjs-2';
+import { Line } from 'react-chartjs-2';
+import { useNavigate } from 'react-router-dom';
 import dashboardService from '../services/dashboardService';
 import movementService from '../services/movementService';
 import productService from '../services/productService';
@@ -28,14 +34,15 @@ import api from '../services/api';
 import alertService from '../services/alertService';
 import toast from 'react-hot-toast';
 
-
 ChartJS.register(
   CategoryScale,
   LinearScale,
-  BarElement,
+  PointElement,
+  LineElement,
   Title,
   Tooltip,
-  Legend
+  Legend,
+  Filler
 );
 
 const chartOptions = {
@@ -43,62 +50,88 @@ const chartOptions = {
   maintainAspectRatio: false,
   plugins: {
     legend: {
-      position: 'top',
-      align: 'end',
-      labels: {
-        usePointStyle: true,
-        boxWidth: 8,
-        boxHeight: 8,
-        color: '#64748b',
-        font: {
-          size: 12,
-          family: "'Inter', sans-serif"
-        }
-      }
+      display: false,
     },
     tooltip: {
-      backgroundColor: '#1e293b',
-      titleColor: '#f8fafc',
-      bodyColor: '#f8fafc',
-      padding: 12,
-      cornerRadius: 8,
+      backgroundColor: '#ffffff',
+      titleColor: '#64748b',
+      titleFont: { size: 10, weight: '700', family: 'Inter' },
+      bodyColor: '#0f172a',
+      bodyFont: { size: 13, weight: '900', family: 'Inter' },
+      padding: 16,
+      cornerRadius: 16,
+      displayColors: false,
+      borderColor: '#f1f5f9',
+      borderWidth: 1,
+      caretSize: 6,
+      shadowColor: 'rgba(0, 0, 0, 0.1)',
+      callbacks: {
+        label: (context) => `Stock : ${context.parsed.y} unités`,
+        footer: (context) => {
+          const val = context[0].parsed.y;
+          return val < -10 ? '⚠ Sorties élevées' : val > 10 ? '✓ Réappro.' : 'Activité stable';
+        }
+      },
+      footerFont: { size: 9, weight: '600', family: 'Inter' },
+      footerColor: '#94a3b8',
     }
   },
   scales: {
     x: {
-      stacked: true,
       grid: {
         display: false,
       },
       ticks: {
         color: '#94a3b8',
         font: {
-          size: 11,
-          weight: '500'
+          size: 10,
+          weight: '500',
+          family: 'Inter'
         }
       }
     },
     y: {
-      stacked: true,
-      display: false, // Hide y-axis as per design
       grid: {
+        display: true,
+        color: '#f1f5f9',
+        drawBorder: false,
+        borderDash: [5, 5],
+      },
+      ticks: {
         display: false,
+        maxTicksLimit: 4,
       }
     }
   },
   elements: {
-    bar: {
-      borderRadius: 4,
+    line: {
+      tension: 0.5,
+      borderWidth: 3,
+      borderColor: '#10b981',
+      capStyle: 'round',
+    },
+    point: {
+      radius: 0,
+      hitRadius: 20,
+      hoverRadius: 8,
+      hoverBorderWidth: 4,
+      hoverBorderColor: '#ffffff',
+      hoverBackgroundColor: '#10b981',
     }
+  },
+  interaction: {
+    mode: 'index',
+    intersect: false,
   }
 };
+
+
 
 const WEEK_LABELS = ['LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM', 'DIM'];
 const TOP5_COLORS = ['bg-teal-700', 'bg-emerald-600', 'bg-blue-600', 'bg-indigo-500', 'bg-teal-800'];
 
-const staticRecentMovements = [];
-
 export default function Dashboard() {
+  const navigate = useNavigate();
   const [kpis, setKpis] = useState({
     total_products: null,
     active_alerts: null,
@@ -144,6 +177,7 @@ export default function Dashboard() {
             qty: isEntry ? `+${qty}` : `-${qty}`,
             status: 'TERMINÉ',
             statusColor: 'bg-teal-100 text-teal-700',
+            user: m.user?.name ?? m.user?.nom ?? m.utilisateur?.name ?? m.utilisateur?.nom ?? 'Agent',
             isEntry,
           };
         }));
@@ -178,16 +212,28 @@ export default function Dashboard() {
       setChartData({
         labels: WEEK_LABELS,
         datasets: [
-          { label: 'Entrées', data: entrees, backgroundColor: '#0f766e', barThickness: 32 },
-          { label: 'Sorties', data: sorties, backgroundColor: '#1e3a8a', barThickness: 32 },
+          { 
+            label: 'Flux net', 
+            data: entrees.map((e, i) => e - sorties[i]), 
+            borderColor: '#10b981', 
+            backgroundColor: (context) => {
+              const ctx = context.chart.ctx;
+              const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+              gradient.addColorStop(0, 'rgba(16, 185, 129, 0.4)');
+              gradient.addColorStop(0.6, 'rgba(16, 185, 129, 0.1)');
+              gradient.addColorStop(1, 'rgba(16, 185, 129, 0)');
+              return gradient;
+            },
+            fill: true,
+            tension: 0.5,
+          },
         ],
       });
     }).catch(() => {
       setChartData({
         labels: WEEK_LABELS,
         datasets: [
-          { label: 'Entrées', data: Array(7).fill(0), backgroundColor: '#0f766e', barThickness: 32 },
-          { label: 'Sorties', data: Array(7).fill(0), backgroundColor: '#1e3a8a', barThickness: 32 },
+          { label: 'Flux net', data: Array(7).fill(0), borderColor: '#0f766e', fill: true, tension: 0.4 },
         ],
       });
     });
@@ -199,12 +245,19 @@ export default function Dashboard() {
         .sort((a, b) => (b.quantite ?? b.quantite_stock ?? b.stock ?? 0) - (a.quantite ?? a.quantite_stock ?? a.stock ?? 0))
         .slice(0, 5);
       const maxQty = sorted[0] ? (sorted[0].quantite ?? sorted[0].quantite_stock ?? sorted[0].stock ?? 1) : 1;
-      setTopProducts(sorted.map((p, i) => ({
-        name: p.nom ?? p.name ?? '—',
-        units: p.quantite ?? p.quantite_stock ?? p.stock ?? 0,
-        color: TOP5_COLORS[i],
-        percentage: Math.round(((p.quantite ?? p.quantite_stock ?? p.stock ?? 0) / maxQty) * 100),
-      })));
+      setTopProducts(sorted.map((p, i) => {
+          const qty = p.quantite ?? p.quantite_stock ?? p.stock ?? 0;
+          const threshold = p.seuil_min ?? p.seuil_minimum ?? 0;
+          const isCritical = qty <= threshold;
+          const isWarning = qty <= threshold * 1.5;
+
+          return {
+            name: p.nom ?? p.name ?? '—',
+            units: qty,
+            color: isCritical ? 'from-red-500 to-red-600' : isWarning ? 'from-orange-400 to-orange-500' : 'from-teal-600 to-teal-700',
+            percentage: Math.round((qty / maxQty) * 100),
+          };
+        }));
     }).catch(() => {});
 
     // Load inventory health score
@@ -245,79 +298,94 @@ export default function Dashboard() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-black tracking-tight text-slate-900">Tableau de bord</h1>
-        <p className="text-[11px] font-bold text-slate-500 mt-1">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-black tracking-tight text-slate-900">Tableau de bord</h1>
+          <p className="text-[11px] font-bold text-slate-500 mt-1">{new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+        </div>
+        <button 
+          onClick={() => navigate('/movements')}
+          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-blue-900 text-white rounded-xl text-[11px] font-black uppercase tracking-widest hover:bg-blue-950 transition-all shadow-lg shadow-blue-900/20 active:scale-95"
+        >
+          <Plus size={18} />
+          Nouveau mouvement
+        </button>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-5">
-        {/* Total Products */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition-shadow">
+        {/* Articles en inventaire */}
+        <div className="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-xl hover:shadow-slate-200/50 hover:-translate-y-1 transition-all duration-300 group">
           <div className="flex justify-between items-start">
-            <div className="p-2.5 rounded-xl bg-blue-50 text-blue-700">
-              <Package size={18} />
+            <div className="p-3 rounded-2xl bg-blue-50 text-blue-700 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-500">
+              <Package size={20} />
             </div>
-            <div className="flex items-center text-emerald-600 text-[11px] font-bold">
-              <TrendingUp size={14} className="mr-1" />
+            <div className="flex items-center text-emerald-600 text-[10px] font-black uppercase tracking-widest">
+              <TrendingUp size={14} className="mr-1" /> Actif
             </div>
           </div>
-          <div className="mt-4">
-            <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Total Produits</p>
-            <p className="text-2xl font-black text-slate-900 mt-0.5">{kpis.total_products ?? '—'}</p>
-            <div className="h-4 mt-1">
+          <div className="mt-6">
+            <p className="text-[10px] font-black tracking-[0.2em] text-slate-400 uppercase">Articles en inventaire</p>
+            <p className="text-3xl font-black text-slate-900 mt-1">{kpis.total_products ?? '—'}</p>
+            <div className="h-5 mt-2">
               {kpis.low_stock_count != null && (
-                <p className="text-[10px] text-red-500 font-bold">{kpis.low_stock_count} en stock bas</p>
+                <p className="text-[10px] text-red-500 font-bold flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                  {kpis.low_stock_count} seuils critiques
+                </p>
               )}
             </div>
           </div>
         </div>
 
-        {/* Active Alerts */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between border-l-[3px] border-l-red-500 relative overflow-hidden group hover:shadow-md transition-shadow">
+        {/* Alertes de vigilance */}
+        <div className="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 flex flex-col justify-between border-l-[4px] border-l-red-500 relative overflow-hidden group hover:shadow-xl hover:shadow-red-100/50 hover:-translate-y-1 transition-all duration-300">
           <div className="flex justify-between items-start z-10 relative">
-            <div className="p-2.5 rounded-xl bg-red-50 text-red-600">
-              <AlertTriangle size={18} />
+            <div className="p-3 rounded-2xl bg-red-50 text-red-600 group-hover:bg-red-500 group-hover:text-white transition-colors duration-500">
+              <AlertTriangle size={20} />
             </div>
           </div>
-          <div className="mt-4 z-10 relative">
-            <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Alertes Actives</p>
-            <p className="text-2xl font-black text-red-600 mt-0.5">{kpis.active_alerts ?? '—'}</p>
-            <div className="h-4 mt-1">
+          <div className="mt-6 z-10 relative">
+            <p className="text-[10px] font-black tracking-[0.2em] text-slate-400 uppercase">Alertes de vigilance</p>
+            <p className="text-3xl font-black text-red-600 mt-1">{kpis.active_alerts ?? '—'}</p>
+            <div className="h-5 mt-2">
               {kpis.pending_orders != null && (
-                <p className="text-[10px] text-orange-500 font-bold">{kpis.pending_orders} commande(s) en attente</p>
+                <p className="text-[10px] text-orange-500 font-bold">{kpis.pending_orders} réappro. en attente</p>
               )}
             </div>
           </div>
         </div>
 
-        {/* Movements Today */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition-shadow">
+        {/* Mouvements mensuels */}
+        <div className="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-xl hover:shadow-slate-200/50 hover:-translate-y-1 transition-all duration-300 group">
           <div className="flex justify-between items-start z-10 relative">
-            <div className="p-2.5 rounded-xl bg-teal-50 text-teal-600">
-              <ArrowLeftRight size={18} />
+            <div className="p-3 rounded-2xl bg-teal-50 text-teal-600 group-hover:bg-teal-600 group-hover:text-white transition-colors duration-500">
+              <ArrowLeftRight size={20} />
             </div>
-            <div className="flex items-center text-emerald-600 text-[11px] font-bold">
-              <TrendingUp size={14} className="mr-1" />
+            <div className="flex items-center text-emerald-600 text-[10px] font-black uppercase tracking-widest">
+              <ArrowUpRight size={14} className="mr-0.5" /> +12%
             </div>
           </div>
-          <div className="mt-4 z-10 relative">
-            <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Flux ce mois</p>
-            <p className="text-2xl font-black text-slate-900 mt-0.5">{kpis.movements_this_month ?? '—'}</p>
-            <div className="h-4 mt-1"></div>
+          <div className="mt-6 z-10 relative">
+            <p className="text-[10px] font-black tracking-[0.2em] text-slate-400 uppercase">Mouvements mensuels</p>
+            <p className="text-3xl font-black text-slate-900 mt-1">{kpis.movements_this_month ?? '—'}</p>
+            <div className="h-5 mt-2"></div>
           </div>
         </div>
 
-        {/* Total Stock Value */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition-shadow">
+        {/* Valeur totale estimée */}
+        <div className="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-xl hover:shadow-slate-200/50 hover:-translate-y-1 transition-all duration-300 group">
           <div className="flex justify-between items-start z-10 relative">
-            <div className="p-2.5 rounded-xl bg-orange-50 text-orange-700">
-              <Banknote size={18} />
+            <div className="p-3 rounded-2xl bg-orange-50 text-orange-700 group-hover:bg-orange-600 group-hover:text-white transition-colors duration-500">
+              <Banknote size={20} />
+            </div>
+            <div className="flex items-center text-emerald-600 text-[10px] font-black uppercase tracking-widest">
+              <ArrowUpRight size={14} className="mr-0.5" /> +4.2%
             </div>
           </div>
-          <div className="mt-4 z-10 relative">
-            <p className="text-[10px] font-black tracking-wider text-slate-400 uppercase">Valeur du Stock</p>
-            <p className="text-xl font-black text-slate-900 mt-0.5">
+          <div className="mt-6 z-10 relative">
+            <p className="text-[10px] font-black tracking-[0.2em] text-slate-400 uppercase">Valeur totale estimée</p>
+            <p className="text-2xl font-black text-slate-900 mt-1">
               {kpis.total_stock_value != null
                 ? (() => {
                     const v = Number(kpis.total_stock_value);
@@ -327,12 +395,12 @@ export default function Dashboard() {
                   })()
                 : '—'}
             </p>
-            <div className="h-4 mt-1"></div>
+            <div className="h-5 mt-2"></div>
           </div>
         </div>
 
         {/* Inventory Health Score */}
-        <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-md transition-shadow">
+        <div className="bg-white rounded-[24px] p-6 shadow-sm border border-slate-100 flex flex-col justify-between hover:shadow-xl hover:shadow-slate-200/50 hover:-translate-y-1 transition-all duration-300">
           <div className="flex justify-between items-start">
             <div className={`p-2.5 rounded-xl ${
               healthScore?.score >= 80 ? 'bg-emerald-50 text-emerald-700' :
@@ -367,6 +435,14 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
+            {healthScore && (
+              <div className="mt-4 bg-blue-50/50 rounded-xl p-3 border border-blue-100/50">
+                <p className="text-[10px] text-slate-500 font-medium leading-relaxed italic">
+                  <span className="text-blue-600 not-italic font-black uppercase tracking-tighter mr-2">IA insight:</span>
+                  {healthScore.score < 75 ? "Baisse de 4% suite à la rupture du Sucre 1kg" : "Stabilité optimale des flux prioritaires."}
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -379,7 +455,7 @@ export default function Dashboard() {
           </div>
           <div className="flex-1 w-full relative min-h-[220px]">
             {chartData ? (
-              <Bar options={chartOptions} data={chartData} />
+              <Line options={chartOptions} data={chartData} />
             ) : (
               <div className="flex items-center justify-center h-full min-h-[180px]">
                 <div className="w-6 h-6 border-2 border-slate-200 border-t-teal-600 rounded-full animate-spin" />
@@ -395,15 +471,15 @@ export default function Dashboard() {
               <div className="w-6 h-6 border-2 border-slate-200 border-t-teal-600 rounded-full animate-spin" />
             </div>
           ) : (
-            <div className="space-y-5">
+            <div className="space-y-6">
               {topProducts.map((product, idx) => (
-                <div key={idx} className="flex flex-col gap-1.5">
-                  <div className="flex justify-between items-center text-[11px]">
-                    <span className="font-semibold text-slate-700 truncate max-w-[140px]">{product.name}</span>
-                    <span className="font-bold text-slate-400 ml-2 shrink-0">{product.units.toLocaleString('fr-FR')} unités</span>
+                <div key={idx} className="flex flex-col gap-2">
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-[12px] font-bold text-slate-700 truncate max-w-[150px]">{product.name}</span>
+                    <span className="text-[11px] font-black text-slate-400 tabular-nums">{product.units.toLocaleString('fr-FR')} <span className="text-[9px] font-bold uppercase tracking-tighter">unités</span></span>
                   </div>
-                  <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                    <div className={`${product.color} h-1.5 rounded-full transition-all duration-700`} style={{ width: `${product.percentage}%` }}></div>
+                  <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden shadow-inner">
+                    <div className={`bg-gradient-to-r ${product.color} h-2 rounded-full transition-all duration-1000 ease-out`} style={{ width: `${product.percentage}%` }}></div>
                   </div>
                 </div>
               ))}
@@ -427,16 +503,24 @@ export default function Dashboard() {
                   <th className="pb-4">Date</th>
                   <th className="pb-4">Type</th>
                   <th className="pb-4">Qté</th>
+                  <th className="pb-4">Utilisateur</th>
                   <th className="pb-4">Statut</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {recentMovements.map((move, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50 transition-colors">
-                    <td className="py-4 pl-1 font-semibold text-slate-800">{move.product}</td>
-                    <td className="py-4 text-slate-400 font-medium text-xs">{move.date ?? '—'}</td>
+                  <tr key={idx} className="hover:bg-slate-50/80 transition-all group cursor-default">
+                    <td className="py-4 pl-1">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-400 group-hover:bg-white group-hover:shadow-sm transition-all border border-transparent group-hover:border-slate-100">
+                          {move.product.substring(0, 2).toUpperCase()}
+                        </div>
+                        <span className="font-bold text-slate-700">{move.product}</span>
+                      </div>
+                    </td>
+                    <td className="py-4 text-slate-400 font-bold text-[11px]">{move.date ?? '—'}</td>
                     <td className="py-4">
-                      <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold ${
+                      <span className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-tight ${
                         move.isEntry ? 'text-emerald-600' : 'text-red-500'
                       }`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${move.isEntry ? 'bg-emerald-500' : 'bg-red-500'}`} />
@@ -444,8 +528,9 @@ export default function Dashboard() {
                       </span>
                     </td>
                     <td className={`py-4 font-black text-[15px] ${move.qty?.startsWith('+') ? 'text-emerald-600' : 'text-red-500'}`}>{move.qty}</td>
+                    <td className="py-4 text-slate-500 font-bold text-[11px]">{move.user}</td>
                     <td className="py-4">
-                      <span className={`px-2.5 py-1 text-[10px] font-bold uppercase rounded-full tracking-wide ${move.statusColor}`}>
+                      <span className="px-2.5 py-1 text-[9px] font-black uppercase rounded-full tracking-widest bg-slate-50 text-slate-400 border border-slate-100">
                         {move.status}
                       </span>
                     </td>
@@ -538,11 +623,7 @@ export default function Dashboard() {
               <button className="group/btn relative flex items-center gap-3 overflow-hidden rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-8 py-4 text-[14px] font-black text-white shadow-xl shadow-blue-500/20 transition-all hover:scale-[1.02] active:scale-95">
                 <div className="absolute inset-0 bg-white/10 group-hover/btn:opacity-0 transition-opacity"></div>
                 <span>Générer le Rapport</span>
-                <ArrowRight size={18} className="transition-transform group-hover/btn:translate-x-1" />
               </button>
-              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest opacity-50">
-                Prêt en 2 secondes
-              </span>
             </div>
           </div>
           

@@ -215,13 +215,20 @@ const Reports = () => {
                             },
                             alternateRowStyles: { fillColor: [248, 250, 252] },
                             margin: { left: 14, right: 14 },
-                            columnStyles: {
-                                0: { cellWidth: 12 }, // ID / Index
-                                1: { cellWidth: 35 }, // Nom / Produit
-                                2: { cellWidth: 25 }, // Type / Cat
-                                // Le reste prend l'espace restant (surtout Message/Description)
-                                [safeHeaders.length - 2]: { cellWidth: 20 }, // Avant-dernier (Active/Statut/EOQ)
-                                [safeHeaders.length - 1]: { cellWidth: 25 }, // Dernier (Date/Confiance)
+                            columnStyles: category === 'ai' ? {
+                                0: { cellWidth: 15 }, // ID
+                                1: { cellWidth: 20 }, // Période
+                                2: { cellWidth: 20 }, // Demande
+                                3: { cellWidth: 15 }, // EOQ
+                                4: { cellWidth: 20 }, // Confiance
+                                5: { cellWidth: 20 }, // Score
+                                6: { cellWidth: 'auto' }, // Raisonnement (prend le reste)
+                            } : {
+                                0: { cellWidth: 12 },
+                                1: { cellWidth: 35 },
+                                2: { cellWidth: 25 },
+                                [safeHeaders.length - 2]: { cellWidth: 20 },
+                                [safeHeaders.length - 1]: { cellWidth: 25 },
                             }
                         });
                     }

@@ -188,9 +188,7 @@ export default function Fournisseurs() {
               <List size={14} />
             </button>
           </div>
-          <button className="p-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors shadow-sm">
-            <Filter size={16} />
-          </button>
+
           <button
             onClick={() => navigate('/suppliers/add')}
             className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-xs font-bold hover:bg-black transition-all shadow-md active:scale-95"

@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import {
     BrainCircuit, TrendingUp, PackageCheck, AlertCircle,
-    Play, Calendar, ShieldCheck, ArrowRight, Search, Zap, ShieldAlert,
-    HeartPulse, FlaskConical, AlertTriangle, Lightbulb, Loader2
+    Play, Search, Zap, ShieldAlert,
+    FlaskConical, AlertTriangle, Lightbulb, Loader2
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import productService from '../services/productService';
 import api from '../services/api';
-import llmService from '../services/llmService';
 
 
 const AIInsights = () => {
@@ -19,6 +19,11 @@ const AIInsights = () => {
     const [predictionData, setPredictionData] = useState(null);
     const [selectedProductName, setSelectedProductName] = useState("");
     const [products, setProducts] = useState([]);
+
+    const cleanText = (text) => {
+        if (!text) return "";
+        return text.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
+    };
 
     // Health Score
     const [healthScore, setHealthScore] = useState(null);
@@ -32,10 +37,6 @@ const AIInsights = () => {
     const [simLoading, setSimLoading] = useState(false);
     const [simResult, setSimResult] = useState(null);
 
-    // LLM Explanation
-    const [explanation, setExplanation] = useState("");
-    const [isExplaining, setIsExplaining] = useState(false);
-
 
     useEffect(() => {
         productService.getAll().then((data) => {
@@ -44,10 +45,18 @@ const AIInsights = () => {
             else if (data?.data && Array.isArray(data.data)) list = data.data;
             else if (data?.data?.data && Array.isArray(data.data.data)) list = data.data.data;
             setProducts(list);
+
+            // Handle redirect from alerts
+            const state = window.history.state?.usr;
+            if (state?.productId) {
+                setSelectedProduct(state.productId);
+                const p = list.find(prod => String(prod.id) === String(state.productId));
+                if (p) setSelectedProductName(p.nom ?? p.name);
+            }
         }).catch(() => toast.error("Erreur de chargement des produits"));
 
         // Load health score
-        api.get('/ai/health-score').then(r => setHealthScore(r.data)).catch(() => {}).finally(() => setHealthLoading(false));
+        api.get('/ai/health-score').then(r => setHealthScore(r.data)).catch(() => { }).finally(() => setHealthLoading(false));
     }, []);
 
     const handleAnalyze = async () => {
@@ -64,10 +73,10 @@ const AIInsights = () => {
 
             const genRecs = (eoq, demande, stock, seuil) => {
                 const recs = [];
-                if (stock < seuil) recs.push(`⚠️ Stock critique (${stock} u.) sous le seuil (${seuil} u.) — réapprovisionner en urgence.`);
-                if (eoq > 0) recs.push(`📦 Commander ${Math.round(eoq)} unités pour minimiser les coûts (EOQ Wilson).`);
-                if (demande > stock * 0.8) recs.push("📈 Demande prévue élevée — envisagez d'augmenter le seuil de sécurité de 20%.");
-                else recs.push("✅ Le stock actuel couvre la demande prévue confortablement.");
+                if (stock < seuil) recs.push(`Stock critique (${stock} u.) sous le seuil (${seuil} u.) — réapprovisionner en urgence.`);
+                if (eoq > 0) recs.push(`Commander ${Math.round(eoq)} unités pour minimiser les coûts (EOQ Wilson).`);
+                if (demande > stock * 0.8) recs.push("Demande prévue élevée — envisagez d'augmenter le seuil de sécurité de 20%.");
+                else recs.push("Le stock actuel couvre la demande prévue confortablement.");
                 return recs.slice(0, 3);
             };
 
@@ -107,6 +116,12 @@ const AIInsights = () => {
         } finally { setIsLoading(false); }
     };
 
+    useEffect(() => {
+        if (selectedProduct && products.length > 0 && !hasData) {
+            handleAnalyze();
+        }
+    }, [selectedProduct, products]);
+
     const handleSimulate = async () => {
         if (!simProduct) { toast.error("Sélectionnez un produit pour la simulation."); return; }
         setSimLoading(true);
@@ -126,19 +141,14 @@ const AIInsights = () => {
         } finally { setSimLoading(false); }
     };
 
-    const handleExplain = async () => {
+    const handleOrderWithAI = () => {
         if (!selectedProduct) return;
-        setIsExplaining(true);
-        setExplanation("");
-        try {
-            const result = await llmService.explainPrevision(selectedProduct);
-            setExplanation(result);
-            toast.success("Analyse détaillée générée");
-        } catch (error) {
-            toast.error("Impossible de générer l'explication");
-        } finally {
-            setIsExplaining(false);
-        }
+        const event = new CustomEvent('open-chat-ai', {
+            detail: {
+                message: `Basé sur ton analyse de ${selectedProductName} (ID: ${selectedProduct}), peux-tu me générer un bon de commande pour la quantité économique recommandée de ${predictionData?.eoq || 0} unités ?`
+            }
+        });
+        window.dispatchEvent(event);
     };
 
 
@@ -153,7 +163,7 @@ const AIInsights = () => {
     const scoreTrack = (s) => s >= 80 ? 'stroke-emerald-500' : s >= 60 ? 'stroke-blue-500' : s >= 40 ? 'stroke-amber-500' : 'stroke-red-500';
 
     return (
-        <div className="w-full animate-in fade-in duration-500">
+        <div className="w-full animate-in fade-in duration-500 pb-10">
 
             {/* Header d'actions IA */}
             <header className="mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -181,16 +191,12 @@ const AIInsights = () => {
                 </div>
 
                 <div className="flex gap-3">
-                    <div className="flex bg-white px-5 py-2 rounded-lg border border-slate-100 shadow-sm items-center gap-3">
-                        <div className="text-right">
-                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Modèle IA</p>
-                            <p className="text-xs font-bold text-emerald-600">v3.0 Opérationnel</p>
-                        </div>
-                        <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
-                    </div>
                     <Link to="/ai-insights/anomalies"
-                        className="flex items-center gap-2 bg-white border border-slate-200 px-5 py-2 rounded-lg text-xs font-bold shadow-sm hover:bg-slate-50 transition-all active:scale-95 text-slate-600">
-                        <ShieldAlert size={16} className="text-red-500" /> Anomalies
+                        className="flex items-center gap-3 bg-slate-900 text-white px-6 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-[0.2em] shadow-xl shadow-slate-200 hover:bg-black transition-all active:scale-95 group">
+                        <div className="p-1.5 bg-red-500 rounded-lg group-hover:rotate-12 transition-transform">
+                            <ShieldAlert size={16} className="text-white" />
+                        </div>
+                        Détecteur d'Anomalies
                     </Link>
                 </div>
             </header>
@@ -221,139 +227,128 @@ const AIInsights = () => {
                 </div>
                 <button className={`w-full lg:w-auto bg-[#1e293b] text-white px-8 py-2.5 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-slate-800 transition-all active:scale-95 shadow-md ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
                     onClick={handleAnalyze} disabled={isLoading}>
-                    {isLoading ? (<><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Analyse...</>) :
+                    {isLoading ? (<><Loader2 size={16} className="animate-spin" /> Analyse...</>) :
                         (<><Zap size={16} fill="currentColor" /> Analyser</>)}
                 </button>
-                {hasData && (
-                    <button className={`w-full lg:w-auto bg-blue-600 text-white px-8 py-2.5 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-blue-700 transition-all active:scale-95 shadow-md ${isExplaining ? 'opacity-70 cursor-not-allowed' : ''}`}
-                        onClick={handleExplain} disabled={isExplaining}>
-                        {isExplaining ? (<><Loader2 size={16} className="animate-spin" /> Génération...</>) :
-                            (<><Sparkles size={16} /> Expliquer</>)}
-                    </button>
-                )}
             </div>
 
 
-            {/* État Vide */}
-            {!hasData && (
-                <div className="w-full py-20 bg-white rounded-xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-center">
-                    <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
-                        <BrainCircuit className="text-blue-500" size={32} />
-                    </div>
-                    <h2 className="text-xl font-bold text-slate-800 tracking-tight">Analyse Prédictive</h2>
-                    <p className="text-xs text-slate-400 mt-2 max-w-sm">Sélectionnez un produit et une période pour générer des prévisions de demande intelligentes.</p>
-                </div>
-            )}
+            <AnimatePresence mode="wait">
+                {/* État Vide */}
+                {!hasData && (
+                    <motion.div
+                        key="empty"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="w-full py-20 bg-white rounded-xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-center"
+                    >
+                        <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
+                            <BrainCircuit className="text-blue-500" size={32} />
+                        </div>
+                        <h2 className="text-xl font-bold text-slate-800 tracking-tight">Analyse Prédictive</h2>
+                        <p className="text-xs text-slate-400 mt-2 max-w-sm">Sélectionnez un produit et une période pour générer des prévisions de demande intelligentes.</p>
+                    </motion.div>
+                )}
 
-            {/* Résultats */}
-            {hasData && (
-                <div className="space-y-8 animate-in slide-in-from-bottom-4 duration-500">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                        {/* Carte EOQ */}
-                        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100 flex flex-col relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-4 opacity-5"><PackageCheck size={80} /></div>
-                            <div className="flex items-center gap-3 mb-2">
-                                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><PackageCheck size={20} /></div>
-                                <div><h3 className="font-bold text-slate-700">Quantité Économique (EOQ)</h3><p className="text-[10px] text-slate-400 font-medium">{selectedProductName}</p></div>
-                            </div>
-                            <div className="mt-3">
-                                <p className="text-3xl font-black text-slate-800">{predictionData?.eoq ?? 0} <span className="text-sm font-medium text-slate-400">unités</span></p>
+                {/* Résultats */}
+                {hasData && (
+                    <motion.div
+                        key="results"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="space-y-8"
+                    >
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            {/* Carte EOQ */}
+                            <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100 flex flex-col relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-4 opacity-5"><PackageCheck size={80} /></div>
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><PackageCheck size={20} /></div>
+                                    <div><h3 className="font-bold text-slate-700 text-sm">Quantité Économique (EOQ)</h3><p className="text-[10px] text-slate-400 font-medium">{selectedProductName}</p></div>
+                                </div>
                                 <div className="mt-3">
-                                    <div className="flex justify-between items-center mb-1">
-                                        <span className="text-[10px] font-bold text-slate-400">Confiance</span>
-                                        <span className="text-[11px] font-black text-emerald-600">{predictionData ? (predictionData.confiance * 100).toFixed(0) : 0}%</span>
-                                    </div>
-                                    <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                                        <div className="h-full bg-emerald-500 rounded-full transition-all duration-700" style={{ width: `${predictionData ? predictionData.confiance * 100 : 0}%` }} />
+                                    <p className="text-3xl font-black text-slate-800">{predictionData?.eoq ?? 0} <span className="text-sm font-medium text-slate-400">unités</span></p>
+                                    <div className="mt-3">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="text-[10px] font-bold text-slate-400">Confiance</span>
+                                            <span className="text-[11px] font-black text-emerald-600">{predictionData ? (predictionData.confiance * 100).toFixed(0) : 0}%</span>
+                                        </div>
+                                        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                                            <div className="h-full bg-emerald-500 rounded-full transition-all duration-700" style={{ width: `${predictionData ? predictionData.confiance * 100 : 0}%` }} />
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div className="mt-auto pt-5"><button className="text-xs font-bold text-blue-600 hover:text-blue-700 flex items-center gap-1">Appliquer au stock <ArrowRight size={14} /></button></div>
-                        </div>
 
-                        {/* Carte Demande Prévue */}
-                        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100 flex flex-col relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-4 opacity-5"><AlertCircle size={80} /></div>
-                            <div className="flex items-center gap-3 mb-2">
-                                <div className="p-2 bg-amber-50 text-amber-600 rounded-lg"><TrendingUp size={20} /></div>
-                                <div><h3 className="font-bold text-slate-700">Demande Prévue</h3><p className="text-[10px] text-slate-400 font-medium">Période : {selectedPeriod}</p></div>
                             </div>
-                            <div className="mt-3">
-                                <p className="text-3xl font-black text-slate-800">{predictionData?.quantite_predite ?? 0} <span className="text-sm font-medium text-slate-400">unités</span></p>
-                                <div className="mt-3 flex items-center gap-2 text-[11px] font-medium text-slate-500">
-                                    <TrendingUp size={13} className="text-amber-500" />
-                                    Stock actuel : <span className="font-black text-slate-700">{predictionData?.stock_actuel ?? '--'}</span> u.
-                                    &nbsp;&bull;&nbsp; Seuil : <span className="font-black text-slate-700">{predictionData?.seuil_minimum ?? '--'}</span> u.
+
+                            {/* Carte Demande Prévue */}
+                            <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100 flex flex-col relative overflow-hidden">
+                                <div className="absolute top-0 right-0 p-4 opacity-5"><AlertCircle size={80} /></div>
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="p-2 bg-amber-50 text-amber-600 rounded-lg"><TrendingUp size={20} /></div>
+                                    <div><h3 className="font-bold text-slate-700 text-sm">Demande Prévue</h3><p className="text-[10px] text-slate-400 font-medium">Période : {selectedPeriod}</p></div>
+                                </div>
+                                <div className="mt-3">
+                                    <p className="text-3xl font-black text-slate-800">{predictionData?.quantite_predite ?? 0} <span className="text-sm font-medium text-slate-400">unités</span></p>
+                                    <div className="mt-3 flex items-center gap-2 text-[11px] font-medium text-slate-500">
+                                        <TrendingUp size={13} className="text-amber-500" />
+                                        Stock actuel : <span className="font-black text-slate-700">{predictionData?.stock_actuel ?? '--'}</span> u.
+                                        &nbsp;&bull;&nbsp; Seuil : <span className="font-black text-slate-700">{predictionData?.seuil_minimum ?? '--'}</span> u.
+                                    </div>
+                                </div>
+                                <div className="mt-auto pt-5">
+                                    <button
+                                        onClick={handleOrderWithAI}
+                                        className="text-[11px] font-black text-amber-600 hover:text-amber-700 flex items-center gap-1 uppercase tracking-widest"
+                                    >
+                                        Commander maintenant <Play size={12} />
+                                    </button>
                                 </div>
                             </div>
-                            <div className="mt-auto pt-5"><button className="text-xs font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1">Commander maintenant <Play size={14} /></button></div>
                         </div>
 
-                        {/* Carte Recommandations */}
-                        <div className="bg-white rounded-xl p-6 shadow-sm border border-slate-100 flex flex-col relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-4 opacity-5"><ShieldCheck size={80} /></div>
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg"><ShieldCheck size={20} /></div>
-                                <div><h3 className="font-bold text-slate-700">Recommandations</h3><p className="text-[10px] text-slate-400 font-medium">Basées sur les données réelles</p></div>
+                        {/* Carte Recommandations - Full Width Below */}
+                        <div className="bg-slate-900 rounded-2xl p-8 shadow-2xl border border-slate-800 relative overflow-hidden group">
+                            <div className="absolute -top-10 -right-10 p-4 opacity-[0.03] group-hover:scale-110 transition-transform duration-700">
+                                <Zap size={240} className="text-white" />
                             </div>
-                            <div className="mt-2 space-y-3">
+
+                            <div className="flex items-center gap-4 mb-8 relative z-10">
+                                <div className="p-3 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-500/20">
+                                    <Lightbulb size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="font-black text-white text-lg tracking-tight">Recommandations IA & Plan d'Action</h3>
+                                    <p className="text-[10px] text-blue-400 font-black uppercase tracking-[0.2em]">Décisions suggérées par le copilote</p>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 relative z-10">
                                 {(predictionData?.recommandations ?? []).map((rec, i) => (
-                                    <div key={i} className="flex items-start gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 mt-1.5 flex-shrink-0" />
-                                        <p className="text-xs text-slate-600 leading-relaxed">{rec}</p>
+                                    <div key={i} className="bg-slate-800/40 p-5 rounded-2xl border border-slate-700/50 backdrop-blur-sm hover:bg-slate-800/60 transition-all flex flex-col justify-center min-h-[100px]">
+                                        <p className="text-[13px] text-slate-200 font-medium leading-relaxed">{cleanText(rec)}</p>
                                     </div>
                                 ))}
                             </div>
                         </div>
-                    </div>
 
-                    {/* XAI Reasoning */}
-                    {predictionData?.reasoning && (
-                        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100 shadow-sm">
-                            <div className="flex items-center gap-3 mb-4">
-                                <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Lightbulb size={20} /></div>
-                                <div>
-                                    <h3 className="font-bold text-slate-700">Raisonnement de l'IA</h3>
-                                    <p className="text-[10px] text-blue-500 font-medium">Explainable AI — Justification des décisions</p>
+                        {/* XAI Reasoning */}
+                        {predictionData?.reasoning && (
+                            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100 shadow-sm">
+                                <div className="flex items-center gap-3 mb-4">
+                                    <div className="p-2 bg-blue-100 text-blue-600 rounded-lg"><Lightbulb size={20} /></div>
+                                    <div>
+                                        <h3 className="font-bold text-slate-700">Raisonnement de l'IA</h3>
+                                        <p className="text-[10px] text-blue-500 font-medium">Explainable AI — Justification des décisions</p>
+                                    </div>
                                 </div>
+                                <p className="text-[13px] text-slate-600 leading-relaxed italic">{predictionData?.reasoning}</p>
                             </div>
-                            <p className="text-[13px] text-slate-600 leading-relaxed italic">{predictionData.reasoning}</p>
-                        </div>
-                    )}
-
-                    {/* LLM Detailed Explanation */}
-                    {explanation && (
-                        <motion.div 
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="bg-white rounded-xl p-8 border border-blue-200 shadow-lg relative overflow-hidden"
-                        >
-                            <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none">
-                                <BrainCircuit size={160} />
-                            </div>
-                            <div className="flex items-center gap-4 mb-6">
-                                <div className="p-3 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-200">
-                                    <Sparkles size={24} />
-                                </div>
-                                <div>
-                                    <h3 className="text-xl font-bold text-slate-800">Synthèse Stratégique du Copilote</h3>
-                                    <p className="text-xs text-blue-500 font-bold uppercase tracking-wider">Analyse Deep-Learning & Logistique</p>
-                                </div>
-                            </div>
-                            <div className="prose prose-slate max-w-none">
-                                <div className="text-[14px] text-slate-600 leading-relaxed whitespace-pre-line bg-slate-50/50 p-6 rounded-2xl border border-slate-100">
-                                    {explanation}
-                                </div>
-                            </div>
-                            <div className="mt-6 flex items-center gap-2 text-[11px] font-bold text-slate-400">
-                                <ShieldCheck size={14} className="text-emerald-500" />
-                                Analyse certifiée par StockManager AI v3.0 • Basé sur Gemini 1.5 Flash
-                            </div>
-                        </motion.div>
-                    )}
-                </div>
-
-            )}
+                        )}
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* ── Simulation What-If ── */}
             <div className="mt-10 bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
@@ -400,7 +395,7 @@ const AIInsights = () => {
                         <div className="flex items-end">
                             <button onClick={handleSimulate} disabled={simLoading}
                                 className="w-full bg-amber-500 text-white px-6 py-2.5 rounded-lg font-bold text-[13px] flex items-center justify-center gap-2 hover:bg-amber-600 transition-all active:scale-95 shadow-md disabled:opacity-60">
-                                {simLoading ? <><Loader2 size={16} className="animate-spin" /> Simulation…</> : <><FlaskConical size={16} /> Simuler</>}
+                                {simLoading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> Simulation…</> : <><FlaskConical size={16} /> Simuler</>}
                             </button>
                         </div>
                     </div>

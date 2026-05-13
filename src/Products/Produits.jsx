@@ -62,6 +62,7 @@ export default function Produits() {
   const [error, setError] = useState(null);
   const [search, setSearch] = useState('');
   const [selectedCat, setSelectedCat] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [meta, setMeta] = useState({ total: 0, last_page: 1 });
   const [lowStockCount, setLowStockCount] = useState(0);
@@ -79,13 +80,14 @@ export default function Produits() {
     }
   };
 
-  const fetchProducts = async (page = 1, s = '', cat = '') => {
+  const fetchProducts = async (page = 1, s = '', cat = '', status = '') => {
     setLoading(true);
     setError(null);
     try {
       const params = { page };
       if (s) params.search = s;
       if (cat) params.categorie_id = cat;
+      if (status) params.status = status;
       const [data, lowStock, cats] = await Promise.all([
         productService.getAll(params),
         productService.getLowStock().catch(() => []),
@@ -106,20 +108,26 @@ export default function Produits() {
   };
 
   useEffect(() => {
-    fetchProducts(currentPage, search, selectedCat);
+    fetchProducts(currentPage, search, selectedCat, selectedStatus);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage]);
 
   const handleSearch = (e) => {
     setSearch(e.target.value);
     setCurrentPage(1);
-    fetchProducts(1, e.target.value, selectedCat);
+    fetchProducts(1, e.target.value, selectedCat, selectedStatus);
   };
-
+  
   const handleCategoryFilter = (e) => {
     setSelectedCat(e.target.value);
     setCurrentPage(1);
-    fetchProducts(1, search, e.target.value);
+    fetchProducts(1, search, e.target.value, selectedStatus);
+  };
+
+  const handleStatusFilter = (e) => {
+    setSelectedStatus(e.target.value);
+    setCurrentPage(1);
+    fetchProducts(1, search, selectedCat, e.target.value);
   };
 
   return (
@@ -203,13 +211,22 @@ export default function Produits() {
             </select>
             <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
           </div>
+          <div className="relative min-w-[180px] hidden sm:block">
+            <select
+              value={selectedStatus}
+              onChange={handleStatusFilter}
+              className="appearance-none w-full px-4 py-2 bg-white border border-slate-200 rounded-lg text-[13px] font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all shadow-sm pr-10">
+              <option value="">Tous les états</option>
+              <option value="normal">Normal</option>
+              <option value="low">Stock Bas</option>
+              <option value="out">Rupture</option>
+            </select>
+            <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+          </div>
         </div>
 
         <div className="flex items-center gap-3 w-full xl:w-auto">
-          <button className="flex-1 xl:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-[13px] font-bold text-slate-600 hover:bg-slate-50 transition-all shadow-sm">
-            <Filter size={16} />
-            Filtres
-          </button>
+
           {isAdmin() && (
             <button 
               onClick={() => navigate('/products/add')}

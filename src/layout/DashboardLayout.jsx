@@ -16,7 +16,8 @@ import {
   AlertTriangle,
   X,
   User,
-  ShoppingCart
+  ShoppingCart,
+  Activity
 } from 'lucide-react';
 
 import authService from '../services/authService';
@@ -76,6 +77,7 @@ export default function DashboardLayout() {
     ...(admin ? [
       { name: 'Rapports', icon: FileText, path: '/reports' },
       { name: 'Analyses IA', icon: Sparkles, path: '/ai-insights' },
+      { name: "Journal d'Audit", icon: Activity, path: '/users/audit-logs' },
     ] : []),
   ];
 
@@ -239,7 +241,12 @@ export default function DashboardLayout() {
         {/* Navbar */}
         <header className="h-14 bg-white border-b border-slate-200 flex items-center justify-between px-6 z-50 relative flex-shrink-0">
           <div className="flex items-center gap-4">
-            <h2 className="text-base font-bold text-blue-900 border-r border-slate-200 pr-5 h-5 flex items-center">{getPageTitle()}</h2>
+            <div className="pr-6 border-r border-slate-200">
+              <h2 className="text-base font-black text-slate-900 leading-none tracking-tight">
+                Stock<span className="text-blue-600">Manager</span>
+              </h2>
+            </div>
+            
             {location.pathname.includes('/products') && (
               <div className="flex items-center gap-5">
                 <button 
@@ -255,8 +262,11 @@ export default function DashboardLayout() {
                   Catégories
                 </button>
                 <button 
-                  onClick={() => { import('react-hot-toast').then(m => m.default.success("Gestion des groupes à venir !")) }}
-                  className="text-[11px] font-bold text-slate-400 hover:text-slate-600"
+                  onClick={() => {
+                    if (admin) navigate('/ai-insights/abc-analysis');
+                    else import('react-hot-toast').then(m => m.default.error("L'analyse des groupes stratégiques (ABC) est réservée aux administrateurs."));
+                  }}
+                  className={`text-[11px] font-bold ${location.pathname === '/ai-insights/abc-analysis' ? 'text-blue-600 underline underline-offset-4' : 'text-slate-400 hover:text-slate-600'}`}
                 >
                   Groupes
                 </button>

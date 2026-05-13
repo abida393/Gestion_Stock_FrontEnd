@@ -153,20 +153,40 @@ const FloatingChatbot = () => {
   }, [messages, isOpen, isMinimized]);
 
   // Markdown-lite + Badge Parser
-  const renderContent = (content) => {
+  const renderContent = (content, isUser = false) => {
     // Remove Action and Chart tags from text display
     let cleanText = content.replace(/\[ACTION:.*?\]/g, '').replace(/\[CHART:.*?\]/g, '').trim();
     
+    // Fallback for action-only messages
+    if (!cleanText && content.includes('[ACTION:')) {
+      cleanText = "Voici le bon de commande généré :";
+    } else if (!cleanText && content.includes('[CHART:')) {
+      cleanText = "Voici l'analyse visuelle demandée :";
+    } else if (!cleanText && !isUser) {
+      cleanText = "J'ai traité votre demande.";
+    }
+
     // Simple formatting
     const parts = cleanText.split(/(\*\*.*?\*\*)/g);
     return parts.map((part, i) => {
       if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={i} className="text-blue-700 font-black">{part.slice(2, -2)}</strong>;
+        return (
+          <strong key={i} className={`${isUser ? 'text-white' : 'text-blue-600'} font-black`}>
+            {part.slice(2, -2)}
+          </strong>
+        );
       }
-      // Handle "badges" (simulated with specific keywords or custom syntax if IA uses it)
-      if (part.includes('u.') || part.includes('unités')) {
-        return <span key={i} className="px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-bold mx-0.5 border border-blue-100">{part}</span>;
+      
+      // Handle list items
+      if (part.trim().startsWith('- ')) {
+        return (
+          <div key={i} className="pl-4 py-1.5 flex items-start gap-3">
+            <span className={`w-1.5 h-1.5 rounded-full ${isUser ? 'bg-white/40' : 'bg-blue-400'} mt-1.5 shrink-0`} />
+            <span className="flex-1">{part.trim().substring(2)}</span>
+          </div>
+        );
       }
+
       return part;
     });
   };
@@ -288,14 +308,14 @@ const FloatingChatbot = () => {
             {/* Header */}
             <div className="bg-slate-900 p-4 flex items-center justify-between text-white relative">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-blue-500/20">
-                  <Bot size={18} />
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-700 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20 border border-white/10">
+                  <span className="text-white font-black text-lg tracking-tighter">SM</span>
                 </div>
                 <div>
-                  <h3 className="text-sm font-bold tracking-tight">Agent IA StockManager</h3>
+                  <h3 className="text-sm font-black tracking-tight">Collaborateur IA</h3>
                   <div className="flex items-center gap-1.5">
                     <div className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse" />
-                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Actionable AI active</span>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Surveillance active</span>
                   </div>
                 </div>
               </div>
@@ -348,18 +368,18 @@ const FloatingChatbot = () => {
                     return (
                       <div key={index} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                         <div className={`flex gap-2 max-w-[90%] ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                          <div className={`w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center shadow-sm ${
-                            msg.role === 'user' ? 'bg-blue-600 text-white' : (msg.isSystem ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-800 text-white')
+                          <div className={`w-8 h-8 rounded-xl flex-shrink-0 flex items-center justify-center shadow-sm border ${
+                            msg.role === 'user' ? 'bg-slate-900 text-white border-slate-800' : (msg.isSystem ? 'bg-emerald-500 text-white border-emerald-400' : 'bg-blue-600 text-white border-blue-500')
                           }`}>
-                            {msg.role === 'user' ? <User size={14} /> : (msg.isSystem ? <CheckCircle2 size={14} /> : <Bot size={14} />)}
+                            {msg.role === 'user' ? <User size={16} /> : (msg.isSystem ? <CheckCircle2 size={16} /> : <span className="text-[10px] font-black">SM</span>)}
                           </div>
                           <div className="flex flex-col gap-2">
-                            <div className={`p-3 rounded-2xl text-[13px] leading-relaxed shadow-sm ${
+                            <div className={`p-3.5 rounded-2xl text-[13px] leading-[1.6] shadow-sm whitespace-pre-wrap ${
                               msg.role === 'user' 
-                                ? 'bg-blue-600 text-white rounded-tr-none' 
-                                : (msg.isSystem ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-white text-slate-700 border border-slate-100 rounded-tl-none')
+                                ? 'bg-blue-600 text-white rounded-tr-none font-medium' 
+                                : (msg.isSystem ? 'bg-emerald-50 text-emerald-700 border border-emerald-100 font-bold' : 'bg-white text-slate-700 border border-slate-100 rounded-tl-none font-medium')
                             }`}>
-                              {renderContent(msg.content)}
+                              {renderContent(msg.content, msg.role === 'user')}
                               
                               {msg.isError && (
                                 <button 
@@ -392,9 +412,13 @@ const FloatingChatbot = () => {
                   })}
                   {isLoading && (
                     <div className="flex justify-start">
-                      <div className="bg-white border border-slate-100 p-3 rounded-2xl flex items-center gap-2">
-                        <Loader2 size={14} className="animate-spin text-blue-600" />
-                        <span className="text-[11px] font-bold text-slate-400">Analyse des stocks...</span>
+                      <div className="bg-white border border-slate-100 p-4 rounded-[20px] flex items-center gap-3 shadow-sm border-tl-none">
+                        <div className="flex gap-1">
+                          <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1 }} className="w-1.5 h-1.5 bg-blue-600 rounded-full" />
+                          <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.2 }} className="w-1.5 h-1.5 bg-blue-400 rounded-full" />
+                          <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ repeat: Infinity, duration: 1, delay: 0.4 }} className="w-1.5 h-1.5 bg-blue-200 rounded-full" />
+                        </div>
+                        <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest">L'IA réfléchit...</span>
                       </div>
                     </div>
                   )}

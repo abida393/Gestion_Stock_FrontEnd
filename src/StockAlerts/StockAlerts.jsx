@@ -26,6 +26,7 @@ const StockAlerts = () => {
         message: a.message ?? null,
         confiance: a.confiance ?? null,
         declenche_le: a.declenche_le,
+        produit_id: a.produit_id ?? a.product_id ?? a.produit?.id ?? a.product?.id,
         priority: a.type === 'prediction' || a.type === 'anomalie' ? 'IA' : (a.priorite ?? 'High'),
     });
 
@@ -169,8 +170,10 @@ const StockAlerts = () => {
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2 flex-shrink-0">
-                                                {(alert.type === 'prediction' || alert.type === 'anomalie') && (
-                                                    <Link to="/ai-insights"
+                                                {(alert.type === 'prediction' || alert.type === 'anomalie' || alert.type === 'seuil') && (
+                                                    <Link 
+                                                        to="/ai-insights"
+                                                        state={{ productId: alert.produit_id ?? alert.product_id }}
                                                         className="flex items-center gap-1 px-3 py-1.5 bg-purple-50 text-purple-600 rounded-lg text-[10px] font-bold hover:bg-purple-100 transition-all border border-purple-100">
                                                         <BrainCircuit size={12} /> Analyse IA <ArrowRight size={10} />
                                                     </Link>

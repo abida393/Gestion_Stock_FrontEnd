@@ -24,7 +24,9 @@ import PrivateRoute from "./components/PrivateRoute";
 import AdminRoute from "./components/AdminRoute";
 import Profile from "./Profile/Profile";
 import Users from "./Users/Users";
+import AuditLogs from "./Users/AuditLogs";
 import Orders from "./Orders/Orders";
+import ABCAnalysis from "./AI_Insights/ABCAnalysis";
 
 
 function App() {
@@ -109,6 +111,7 @@ function App() {
             <Route element={<DashboardLayout />}>
               <Route index element={<AIInsights />} />
               <Route path="anomalies" element={<AnomalyDetection />} />
+              <Route path="abc-analysis" element={<ABCAnalysis />} />
             </Route>
           </Route>
 
@@ -119,6 +122,7 @@ function App() {
           <Route path="/users" element={<AdminRoute />}>
             <Route element={<DashboardLayout />}>
               <Route index element={<Users />} />
+              <Route path="audit-logs" element={<AuditLogs />} />
             </Route>
           </Route>
         </Route>

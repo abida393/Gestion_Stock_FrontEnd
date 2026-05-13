@@ -83,6 +83,7 @@ const MovementHistory = () => {
             type: isEntry ? 'ENTRÉE' : 'SORTIE',
             qty: isEntry ? `+${m.quantite ?? m.quantity}` : `-${m.quantite ?? m.quantity}`,
             after: m.stock_apres ?? m.stock_after ?? '—',
+            threshold: m.product?.seuil_min ?? m.produit?.seuil_min ?? '—',
             user: m.user?.name ?? m.user?.nom ?? m.utilisateur?.name ?? m.utilisateur?.nom ?? '—',
             note: m.note ?? m.reference ?? '',
         };
@@ -253,6 +254,7 @@ const MovementHistory = () => {
                                 <th className="px-6 py-3 text-center">Type</th>
                                 <th className="px-6 py-3 text-center">Quantité</th>
                                 <th className="px-6 py-3 text-center">Stock Final</th>
+                                <th className="px-6 py-3 text-center">Seuil Min</th>
                                 <th className="px-6 py-3">Utilisateur</th>
                                 <th className="px-6 py-3 text-right">Note</th>
                             </tr>
@@ -295,6 +297,11 @@ const MovementHistory = () => {
                                         {m.qty}
                                     </td>
                                     <td className="px-6 py-3.5 text-center font-bold text-slate-500 text-[13px]">{m.after}</td>
+                                    <td className="px-6 py-3.5 text-center">
+                                        <span className="px-2 py-0.5 bg-slate-100 rounded text-[10px] font-bold text-slate-400 border border-slate-200/50">
+                                            {m.threshold}
+                                        </span>
+                                    </td>
                                     <td className="px-6 py-3.5">
                                         <div className="flex items-center gap-2">
                                             <div className="w-6 h-6 bg-slate-100 rounded-full border border-slate-200"></div>
