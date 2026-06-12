@@ -21,16 +21,20 @@ import movementService from '../services/movementService';
 const StockMovements = () => {
     const [movementType, setMovementType] = useState('IN');
     const [selectedProductId, setSelectedProductId] = useState("");
+    const [searchTerm, setSearchTerm] = useState("");
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [quantity, setQuantity] = useState("");
     const [note, setNote] = useState("");
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+    const [region, setRegion] = useState("");
+    const [canal, setCanal] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [products, setProducts] = useState([]);
     const [selectedProduct, setSelectedProduct] = useState(null);
     const dateInputRef = useRef(null);
 
     useEffect(() => {
-        productService.getAll().then((data) => {
+        productService.getAll({ per_page: 1000 }).then((data) => {
             const list = Array.isArray(data) ? data : (data.data ?? []);
             setProducts(list);
         }).catch(() => {});
@@ -40,10 +44,17 @@ const StockMovements = () => {
         if (selectedProductId) {
             const p = products.find(p => p.id.toString() === selectedProductId.toString());
             setSelectedProduct(p);
+            if (p && searchTerm === "") {
+                setSearchTerm(p.nom ?? p.name);
+            }
         } else {
             setSelectedProduct(null);
         }
     }, [selectedProductId, products]);
+
+    const filteredProducts = products.filter(p => 
+        (p.nom ?? p.name).toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     const handleConfirm = async () => {
         if (!selectedProductId || !quantity) {
@@ -65,16 +76,18 @@ const StockMovements = () => {
 
         setIsSubmitting(true);
         try {
-            await movementService.record({
+            await movementService.create({
                 produit_id: selectedProductId,
                 type: movementType === 'IN' ? 'entree' : 'sortie',
                 quantite: parseInt(quantity, 10),
                 note: note || undefined,
                 date_mouvement: date || undefined,
+                region: movementType === 'OUT' ? region || undefined : undefined,
+                canal: movementType === 'OUT' ? canal || undefined : undefined,
             });
             toast.success("Flux de stock enregistré avec succès !");
             
-            productService.getAll().then((data) => {
+            productService.getAll({ per_page: 1000 }).then((data) => {
                 const list = Array.isArray(data) ? data : (data.data ?? []);
                 setProducts(list);
             }).catch(() => {});
@@ -138,16 +151,48 @@ const StockMovements = () => {
                                         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors">
                                             <Package size={18} />
                                         </div>
-                                        <select
-                                            value={selectedProductId}
-                                            onChange={(e) => setSelectedProductId(e.target.value)}
-                                            className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/30 transition-all text-slate-700 text-sm font-bold appearance-none cursor-pointer"
-                                        >
-                                            <option value="">Choisir un article...</option>
-                                            {products.map(p => (
-                                                <option key={p.id} value={p.id}>{p.nom ?? p.name}</option>
-                                            ))}
-                                        </select>
+                                        <input
+                                            type="text"
+                                            placeholder="Taper pour rechercher un produit..."
+                                            value={searchTerm}
+                                            onChange={(e) => {
+                                                setSearchTerm(e.target.value);
+                                                setIsDropdownOpen(true);
+                                                if (e.target.value === '') setSelectedProductId('');
+                                            }}
+                                            onFocus={() => setIsDropdownOpen(true)}
+                                            onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
+                                            className="w-full pl-12 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/30 transition-all text-slate-700 text-sm font-bold"
+                                        />
+                                        <AnimatePresence>
+                                            {isDropdownOpen && filteredProducts.length > 0 && (
+                                                <motion.ul
+                                                    initial={{ opacity: 0, y: -10 }}
+                                                    animate={{ opacity: 1, y: 0 }}
+                                                    exit={{ opacity: 0, y: -10 }}
+                                                    className="absolute z-10 w-full mt-2 bg-white border border-slate-100 shadow-xl rounded-2xl max-h-60 overflow-y-auto"
+                                                >
+                                                    {filteredProducts.map(p => (
+                                                        <li
+                                                            key={p.id}
+                                                            onMouseDown={(e) => {
+                                                                e.preventDefault();
+                                                                setSelectedProductId(p.id);
+                                                                setSearchTerm(p.nom ?? p.name);
+                                                                setIsDropdownOpen(false);
+                                                            }}
+                                                            className={`px-4 py-3 cursor-pointer text-sm font-semibold transition-colors ${
+                                                                selectedProductId === p.id 
+                                                                    ? 'bg-blue-50 text-blue-700' 
+                                                                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                                                            }`}
+                                                        >
+                                                            {p.nom ?? p.name}
+                                                        </li>
+                                                    ))}
+                                                </motion.ul>
+                                            )}
+                                        </AnimatePresence>
                                     </div>
                                 </div>
 
@@ -188,6 +233,41 @@ const StockMovements = () => {
                                     </div>
                                 </div>
 
+                                {/* Region and Canal for Outputs */}
+                                {movementType === 'OUT' && (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                        <div>
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 block ml-1">Région</label>
+                                            <div className="relative group">
+                                                <select
+                                                    value={region}
+                                                    onChange={(e) => setRegion(e.target.value)}
+                                                    className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/30 transition-all text-sm font-bold appearance-none cursor-pointer"
+                                                >
+                                                    <option value="">Sélectionner une région...</option>
+                                                    <option value="Casablanca">Casablanca</option>
+                                                    <option value="Tanger">Tanger</option>
+                                                    <option value="Marrakech">Marrakech</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 block ml-1">Canal de Vente</label>
+                                            <div className="relative group">
+                                                <select
+                                                    value={canal}
+                                                    onChange={(e) => setCanal(e.target.value)}
+                                                    className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500/30 transition-all text-sm font-bold appearance-none cursor-pointer"
+                                                >
+                                                    <option value="">Sélectionner un canal...</option>
+                                                    <option value="Physique">Physique</option>
+                                                    <option value="En ligne">En ligne</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Note */}
                                 <div>
                                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-3 block ml-1">Note de mouvement</label>
@@ -207,7 +287,7 @@ const StockMovements = () => {
                                 {/* Actions */}
                                 <div className="flex flex-col-reverse md:flex-row items-center justify-end gap-8 pt-8 border-t border-slate-100">
                                     <button
-                                        onClick={() => { setQuantity(""); setNote(""); setSelectedProductId(""); }}
+                                        onClick={() => { setQuantity(""); setNote(""); setSelectedProductId(""); setSearchTerm(""); setRegion(""); setCanal(""); }}
                                         className="text-[11px] font-black text-slate-400 hover:text-red-500 transition-colors uppercase tracking-[0.2em]"
                                     >
                                         Réinitialiser

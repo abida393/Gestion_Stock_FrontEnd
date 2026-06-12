@@ -1,9 +1,8 @@
 import api from './api';
 
 const dashboardService = {
-  /** GET /dashboard — global KPIs */
-  async getKPIs() {
-    const response = await api.get('/dashboard');
+  async getKPIs(params) {
+    const response = await api.get('/dashboard', { params });
     return response.data;
   },
 };

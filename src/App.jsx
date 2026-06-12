@@ -29,11 +29,19 @@ import Orders from "./Orders/Orders";
 import ABCAnalysis from "./AI_Insights/ABCAnalysis";
 
 
+import Settings from "./Settings/Settings";
+
+
 function App() {
   const [isInitializing, setIsInitializing] = useState(true);
   const isAuthenticated = !!sessionStorage.getItem('token');
 
   useEffect(() => {
+    // Initialize dark mode
+    if (localStorage.getItem('theme') === 'dark') {
+      document.documentElement.classList.add('dark');
+    }
+
     const initAuth = async () => {
       if (isAuthenticated) {
         try {
@@ -54,7 +62,7 @@ function App() {
 
   return (
     <Router>
-      <Toaster position="top-right" />
+      <Toaster position="top-center" />
       <Routes>
         {/* Public route — redirect to dashboard if already logged in */}
         <Route
@@ -117,6 +125,12 @@ function App() {
 
           <Route path="/profile" element={<DashboardLayout />}>
             <Route index element={<Profile />} />
+          </Route>
+
+          <Route path="/settings" element={<AdminRoute />}>
+            <Route element={<DashboardLayout />}>
+              <Route index element={<Settings />} />
+            </Route>
           </Route>
 
           <Route path="/users" element={<AdminRoute />}>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Bell, Clock, CheckCircle, AlertCircle, SortDesc, Search, Settings, BrainCircuit, TrendingDown, ShieldAlert, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import alertService from '../services/alertService';
+import { isAdmin } from '../services/permissionHelper';
 
 const TYPE_CONFIG = {
     seuil:      { label: 'Seuil',      color: 'bg-red-50 text-red-600 border-red-100',      icon: <AlertCircle size={16} />,   priority: 'Critique' },
@@ -170,7 +171,7 @@ const StockAlerts = () => {
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2 flex-shrink-0">
-                                                {(alert.type === 'prediction' || alert.type === 'anomalie' || alert.type === 'seuil') && (
+                                                {isAdmin() && (alert.type === 'prediction' || alert.type === 'anomalie' || alert.type === 'seuil') && (
                                                     <Link 
                                                         to="/ai-insights"
                                                         state={{ productId: alert.produit_id ?? alert.product_id }}

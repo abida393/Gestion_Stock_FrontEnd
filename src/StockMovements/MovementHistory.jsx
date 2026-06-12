@@ -13,6 +13,7 @@ import api from '../services/api';
 
 const MovementHistory = () => {
     const [filterType, setFilterType] = useState('Tous');
+    const [personalOnly, setPersonalOnly] = useState(false);
     const [movements, setMovements] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -25,18 +26,17 @@ const MovementHistory = () => {
     const [auditResults, setAuditResults] = useState(null);
     const itemsPerPage = 8;
 
-    const fetchMovements = async (type) => {
+    const fetchMovements = async (type, pOnly) => {
         setLoading(true);
         setError(null);
         try {
-            let data;
-            if (type === 'ENTRÉE') {
-                data = await movementService.getEntries();
-            } else if (type === 'SORTIE') {
-                data = await movementService.getExits();
-            } else {
-                data = await movementService.getAll();
-            }
+            const params = {};
+            if (pOnly) params.personal = 1;
+            if (type === 'ENTRÉE') params.type = 'entree';
+            if (type === 'SORTIE') params.type = 'sortie';
+            
+            const data = await movementService.getAll(params);
+            
             let list = [];
             if (Array.isArray(data)) list = data;
             else if (data?.data && Array.isArray(data.data)) list = data.data;
@@ -51,9 +51,9 @@ const MovementHistory = () => {
     };
 
     useEffect(() => {
-        fetchMovements(filterType);
+        fetchMovements(filterType, personalOnly);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filterType]);
+    }, [filterType, personalOnly]);
 
     useEffect(() => {
         productService.getAll().then((data) => {
@@ -178,19 +178,30 @@ const MovementHistory = () => {
                     </select>
                 </div>
 
-                <div className="flex items-center bg-slate-100 p-1 rounded-lg h-10">
-                    {['Tous', 'ENTRÉE', 'SORTIE'].map(t => (
-                        <button
-                            key={t}
-                            onClick={() => setFilterType(t)}
-                            className={`px-4 h-full flex items-center justify-center gap-1.5 rounded-md text-xs font-bold transition-all ${filterType === t ? 'bg-[#1e293b] text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                            {t === 'Tous' && <Filter size={14} />}
-                            {t === 'ENTRÉE' && <ArrowDownLeft size={14} />}
-                            {t === 'SORTIE' && <ArrowUpRight size={14} />}
-                            {t}
-                        </button>
-                    ))}
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setPersonalOnly(!personalOnly)}
+                        className={`h-10 px-4 rounded-lg text-xs font-bold transition-all shadow-sm flex items-center ${
+                            personalOnly ? 'bg-blue-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                        }`}
+                    >
+                        Mes mouvements
+                    </button>
+                    
+                    <div className="flex items-center bg-slate-100 p-1 rounded-lg h-10">
+                        {['Tous', 'ENTRÉE', 'SORTIE'].map(t => (
+                            <button
+                                key={t}
+                                onClick={() => setFilterType(t)}
+                                className={`px-4 h-full flex items-center justify-center gap-1.5 rounded-md text-xs font-bold transition-all ${filterType === t ? 'bg-[#1e293b] text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                            >
+                                {t === 'Tous' && <Filter size={14} />}
+                                {t === 'ENTRÉE' && <ArrowDownLeft size={14} />}
+                                {t === 'SORTIE' && <ArrowUpRight size={14} />}
+                                {t}
+                            </button>
+                        ))}
+                    </div>
                 </div>
 
                 <div className="flex items-end gap-3 flex-wrap">

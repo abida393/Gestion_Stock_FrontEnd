@@ -86,6 +86,56 @@ const ABCAnalysis = () => {
         </div>
       </div>
 
+      {/* Guide de Lecture */}
+      <div className="bg-slate-900 rounded-[24px] p-8 shadow-xl text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 p-8 opacity-10"><Info size={120} /></div>
+        <div className="relative z-10">
+          <h3 className="text-lg font-black tracking-tight mb-6 flex items-center gap-2">
+            <Info className="text-blue-400" size={20} />
+            Guide de Lecture des Classifications
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+            {/* Colonne Valeur */}
+            <div className="space-y-4">
+              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-400 border-b border-emerald-400/20 pb-2">Classification par Valeur (Prix × Stock)</h4>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <span className="w-6 h-6 shrink-0 bg-emerald-500 text-white rounded text-[10px] font-black flex items-center justify-center">A</span>
+                  <p className="text-[12px] text-slate-300"><strong className="text-white">Stratégique :</strong> Articles coûteux nécessitant une surveillance quotidienne et des stocks de sécurité précis.</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="w-6 h-6 shrink-0 bg-blue-500 text-white rounded text-[10px] font-black flex items-center justify-center">B</span>
+                  <p className="text-[12px] text-slate-300"><strong className="text-white">Intermédiaire :</strong> Gestion standard avec révision périodique.</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="w-6 h-6 shrink-0 bg-slate-600 text-white rounded text-[10px] font-black flex items-center justify-center">C</span>
+                  <p className="text-[12px] text-slate-300"><strong className="text-white">Secondaire :</strong> Articles de faible valeur. On privilégie la simplicité de gestion (commandes en gros).</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Colonne Rotation */}
+            <div className="space-y-4">
+              <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-blue-400 border-b border-blue-400/20 pb-2">Classification par Rotation (Fréquence de sortie)</h4>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <span className="w-6 h-6 shrink-0 bg-indigo-500 text-white rounded text-[10px] font-black flex items-center justify-center">A</span>
+                  <p className="text-[12px] text-slate-300"><strong className="text-white">Haute Rotation :</strong> Sorties très fréquentes. Risque de rupture élevé si non surveillé.</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="w-6 h-6 shrink-0 bg-cyan-500 text-white rounded text-[10px] font-black flex items-center justify-center">B</span>
+                  <p className="text-[12px] text-slate-300"><strong className="text-white">Rotation Moyenne :</strong> Flux régulier mais modéré.</p>
+                </div>
+                <div className="flex items-start gap-3">
+                  <span className="w-6 h-6 shrink-0 bg-slate-600 text-white rounded text-[10px] font-black flex items-center justify-center">C</span>
+                  <p className="text-[12px] text-slate-300"><strong className="text-white">Faible Rotation :</strong> Stock stagnant ou dormant. Immobilisation inutile de capital si la valeur est élevée.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Main Analysis Table */}
       <div className="bg-white rounded-[24px] border border-slate-100 shadow-xl overflow-hidden">
         <div className="p-6 border-b border-slate-50 bg-slate-50/30 flex justify-between items-center">

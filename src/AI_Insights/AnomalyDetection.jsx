@@ -174,21 +174,21 @@ const AnomalyDetection = () => {
     return (
         <div className="w-full animate-in fade-in duration-500">
             {/* Breadcrumb */}
-            <nav className="flex text-[9px] text-slate-400 mb-6 gap-2 font-black uppercase tracking-[0.2em]">
-                <Link to="/ai-insights" className="hover:text-blue-500 transition-colors">Analyses IA</Link>
-                <span className="text-slate-200">/</span>
-                <span className="text-slate-500">Anomalies</span>
+            <nav className="flex text-[9px] text-slate-500 mb-6 gap-2 font-black uppercase tracking-[0.2em]">
+                <Link to="/ai-insights" className="hover:text-blue-600 transition-colors">Analyses IA</Link>
+                <span className="text-slate-300">/</span>
+                <span className="text-slate-600">Anomalies</span>
             </nav>
 
             {/* Hero Banner */}
             <div className="w-full bg-[#1e293b] rounded-xl p-6 mb-8 text-white relative overflow-hidden shadow-lg border border-slate-700">
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent to-blue-900/20 pointer-events-none" />
                 <div className="relative z-10 max-w-xl">
-                    <h2 className="text-xl font-bold mb-1.5 tracking-tight">Détection d'Anomalies</h2>
-                    <p className="text-slate-400 text-xs leading-relaxed">
-                        Analyse en temps réel de {totalMvt.toLocaleString('fr-FR')} mouvements.
+                    <h2 className="text-2xl font-black mb-2 tracking-tight text-white">Détection d'Anomalies</h2>
+                    <p className="text-blue-100/80 text-xs font-medium leading-relaxed">
+                        Analyse en temps réel de <span className="text-white font-bold">{totalMvt.toLocaleString('fr-FR')}</span> mouvements.
                         {totalAno > 0
-                            ? ` ${totalAno} irrégularité${totalAno > 1 ? 's' : ''} détectée${totalAno > 1 ? 's' : ''}.`
+                            ? <span className="text-blue-200"> {totalAno} irrégularité{totalAno > 1 ? 's' : ''} détectée{totalAno > 1 ? 's' : ''}.</span>
                             : ' Aucune irrégularité détectée.'}
                     </p>
                 </div>

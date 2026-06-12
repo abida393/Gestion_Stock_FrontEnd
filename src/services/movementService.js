@@ -30,7 +30,7 @@ const movementService = {
    * Auto-updates stock levels on the backend.
    * Expected payload: { product_id, type: 'entree'|'sortie', quantity, note?, date? }
    */
-  async record(data) {
+  async create(data) {
     const response = await api.post('/mouvements', data);
     return response.data;
   },

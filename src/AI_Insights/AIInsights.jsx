@@ -9,6 +9,8 @@ import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import productService from '../services/productService';
 import api from '../services/api';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 
 const AIInsights = () => {
@@ -67,7 +69,7 @@ const AIInsights = () => {
             const stockActuel = localProd?.stock_actuel ?? localProd?.stock ?? localProd?.quantite ?? 0;
             const seuilMin = localProd?.seuil_minimum ?? localProd?.seuil_min ?? 0;
 
-            const response = await api.post('/ai/sync');
+            const response = await api.post('/ai/sync', { period: selectedPeriod });
             const rawPredictions = response.data.predictions ?? [];
             const match = rawPredictions.find(p => String(p.produit_id) === String(selectedProduct));
 
@@ -84,7 +86,9 @@ const AIInsights = () => {
             const list = Array.isArray(previsionResponse.data) ? previsionResponse.data : (previsionResponse.data.data ?? []);
 
             if (list.length > 0) {
-                const latest = list[list.length - 1];
+                // Find the latest prediction for the selected period if possible, otherwise take the latest
+                const latest = list.find(p => p.periode.endsWith(selectedPeriod)) || list[0];
+                
                 const agentRecs = match?.recommandations ?? [];
                 const recs = agentRecs.length > 0 ? agentRecs : genRecs(latest.eoq, latest.quantite_predite, stockActuel, seuilMin);
                 setPredictionData({
@@ -117,10 +121,10 @@ const AIInsights = () => {
     };
 
     useEffect(() => {
-        if (selectedProduct && products.length > 0 && !hasData) {
+        if (selectedProduct && products.length > 0) {
             handleAnalyze();
         }
-    }, [selectedProduct, products]);
+    }, [selectedProduct, selectedPeriod, products]);
 
     const handleSimulate = async () => {
         if (!simProduct) { toast.error("Sélectionnez un produit pour la simulation."); return; }
@@ -143,9 +147,57 @@ const AIInsights = () => {
 
     const handleOrderWithAI = () => {
         if (!selectedProduct) return;
+
+        try {
+            // --- Generate PDF ---
+            const doc = new jsPDF();
+            
+            doc.setFontSize(20);
+            doc.setTextColor(15, 23, 42); // slate-900
+            doc.text("BON DE COMMANDE", 14, 22);
+
+            doc.setFontSize(10);
+            doc.setTextColor(100, 116, 139); // slate-500
+            const orderNumber = `BC-${Math.floor(1000 + Math.random() * 9000)}-${new Date().getFullYear()}`;
+            doc.text(`Numéro: ${orderNumber}`, 14, 30);
+            doc.text(`Date: ${new Date().toLocaleDateString('fr-FR')}`, 14, 35);
+
+            // Fetch supplier info from product
+            const productData = products.find(p => String(p.id) === String(selectedProduct));
+            const fournisseurName = productData?.fournisseur?.nom || productData?.fournisseur || "Fournisseur Non Spécifié";
+            
+            doc.setFontSize(12);
+            doc.setTextColor(15, 23, 42);
+            doc.text("Informations Fournisseur", 14, 45);
+            doc.setFontSize(10);
+            doc.setTextColor(100, 116, 139);
+            doc.text(`Nom: ${fournisseurName}`, 14, 52);
+
+            doc.autoTable({
+                startY: 60,
+                head: [['Article', 'Quantité', 'Observation']],
+                body: [
+                    [selectedProductName, predictionData?.eoq || 0, 'Recommandation IA (EOQ Wilson)'],
+                ],
+                theme: 'grid',
+                headStyles: { fillColor: [15, 23, 42], textColor: 255 },
+                styles: { fontSize: 10, cellPadding: 5 },
+            });
+
+            const finalY = doc.lastAutoTable.finalY || 60;
+            doc.setFontSize(10);
+            doc.text("Généré automatiquement par le Copilote IA StockManager", 14, finalY + 20);
+
+            doc.save(`${orderNumber}_${selectedProductName.replace(/\s+/g, '_')}.pdf`);
+            toast.success("Bon de commande PDF généré.");
+        } catch (e) {
+            console.error("Erreur génération PDF:", e);
+            toast.error("Échec de la génération du PDF.");
+        }
+
         const event = new CustomEvent('open-chat-ai', {
             detail: {
-                message: `Basé sur ton analyse de ${selectedProductName} (ID: ${selectedProduct}), peux-tu me générer un bon de commande pour la quantité économique recommandée de ${predictionData?.eoq || 0} unités ?`
+                message: `J'ai généré et téléchargé le bon de commande PDF pour ${selectedProductName} (ID: ${selectedProduct}, Quantité EOQ: ${predictionData?.eoq || 0}). Peux-tu confirmer la procédure avec le fournisseur ?`
             }
         });
         window.dispatchEvent(event);
